@@ -45,9 +45,7 @@ services:
       WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
       WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
     volumes:
-      # Mount custom plugin directly into wp-content so it is always up to date
       - wp_data:/var/www/html
-      - ./wordpress/plugins/fs-finance-workflow:/var/www/html/wp-content/plugins/fs-finance-workflow:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/wp-login.php"]
       interval: 15s
@@ -62,7 +60,6 @@ services:
         condition: service_healthy
     volumes:
       - wp_data:/var/www/html
-      - ./wordpress/plugins/fs-finance-workflow:/var/www/html/wp-content/plugins/fs-finance-workflow:ro
       - ./scripts/wp-install.sh:/scripts/wp-install.sh:ro
     environment:
       WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
@@ -96,7 +93,7 @@ services:
 
   # ─── Keycloak ─────────────────────────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:25.0
+    image: quay.io/keycloak/keycloak:26.2
     restart: unless-stopped
     depends_on:
       postgres:

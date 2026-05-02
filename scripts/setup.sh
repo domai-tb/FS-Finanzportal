@@ -37,8 +37,8 @@ docker compose up -d mariadb wordpress postgres keycloak
 
 echo "==> Waiting for WordPress to become healthy..."
 for i in $(seq 1 30); do
-  STATUS=$(docker compose ps --format json wordpress 2>/dev/null \
-           | grep -o '"Health":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+  STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
+           "$(docker compose ps -q wordpress)" 2>/dev/null || true)
   if [ "$STATUS" = "healthy" ]; then
     echo "    WordPress is healthy."
     break

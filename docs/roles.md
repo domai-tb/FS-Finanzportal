@@ -5,8 +5,8 @@ All roles are defined in the Keycloak realm **`fs-finance`**
 capabilities via the `daggerhart-openid-connect-generic` plugin.
 
 > **TODO**: The actual WordPress capability mapping is not yet implemented.
-> Add the mapping in `wordpress/plugins/fs-finance-workflow/` once Keycloak
-> integration is confirmed working.
+> Configure role → capability mapping via the OpenID Connect Generic plugin settings
+> once Keycloak integration is confirmed working.
 
 ---
 

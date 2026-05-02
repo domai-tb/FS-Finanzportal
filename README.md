@@ -14,7 +14,7 @@ Fachschaften. Fachschaften can manage **Beschlüsse**, **Belege**, and
 |-----------|-----------|
 | Main application | WordPress 6 (Apache/PHP) |
 | WordPress database | MariaDB 11 |
-| SSO / OpenID Connect | Keycloak 25 |
+| SSO / OpenID Connect | Keycloak 26.2 |
 | Keycloak database | PostgreSQL 16 |
 | Orchestration | Docker Compose |
 | Automated WP setup | WP-CLI |
@@ -96,13 +96,6 @@ FS-Finanzportal/
 ├── keycloak/
 │   └── realms/
 │       └── fs-finance-realm.json       # Keycloak realm export (placeholder)
-├── wordpress/
-│   └── plugins/
-│       └── fs-finance-workflow/        # Minimal custom plugin
-│           ├── fs-finance-workflow.php # Plugin entry point
-│           └── includes/
-│               ├── post-types.php      # CPT: fachschaft, beschluss, zahlungsanweisung
-│               └── workflow-statuses.php # Custom post statuses
 └── docs/
     ├── architecture.md                 # System architecture overview
     └── roles.md                        # Role definitions and permissions
@@ -120,7 +113,7 @@ FS-Finanzportal/
 ## Contributing
 
 1. Create a feature branch from `main`.
-2. Follow the existing code style (simple, readable Bash and PHP).
+2. Follow the existing code style (simple, readable Bash and Docker Compose).
 3. Prefer existing WordPress plugins over custom PHP code.
 4. Open a pull request with a clear description of the change.
 

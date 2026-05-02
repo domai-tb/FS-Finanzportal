@@ -5,6 +5,15 @@
 # Installs WordPress core, activates plugins, and configures
 # the basic settings needed for the FS-Finanzportal prototype.
 #
+# Plugin strategy (low-code first):
+#   - Pods               → content types: Beschluss, Zahlungsanweisung
+#   - Admin Columns      → list view with Fachschaft, Betrag, Status, Datum
+#   - OpenID Connect     → Keycloak SSO login
+#   - PublishPress Statuses → workflow status management
+#
+# No custom PHP plugin is installed in this prototype stage.
+# Custom code will be added only when existing plugins cannot cover a need.
+#
 # Environment variables are injected by Docker Compose from the
 # wp-cli service definition.
 
@@ -62,31 +71,38 @@ if ! $WP site switch-language de_DE; then
   echo "    WARN: Could not switch site language to de_DE."
 fi
 
-# ── Recommended plugins ───────────────────────────────────────────────────────
-# Prefer existing WordPress plugins over custom code (see problem statement).
-#
-# TODO: Replace placeholder slugs with the actual plugin slugs from
-#       wordpress.org once the team agrees on the final selection.
-
-echo "==> Installing recommended plugins..."
+# ── Plugins ───────────────────────────────────────────────────────────────────
+echo "==> Installing plugins..."
 
 # OpenID Connect / Keycloak SSO
-# Plugin: daggerhart-openid-connect-generic
-$WP plugin install daggerhart-openid-connect-generic --activate || \
+# Configure client ID, secret, and endpoints via WP Admin or wp option after install.
+# See: Settings → OpenID Connect Client
+if ! $WP plugin install daggerhart-openid-connect-generic --activate; then
   echo "    WARN: Could not install OpenID Connect plugin (check network)."
+fi
 
-# Advanced Custom Fields – used for Beschluss / Zahlungsanweisung meta
-$WP plugin install advanced-custom-fields --activate || \
-  echo "    WARN: Could not install ACF plugin (check network)."
+# Pods – content type builder (replaces CPT + ACF for this prototype).
+# After install, create content types via Pods Admin:
+#   • Beschluss:         fields: Fachschaft (text), Betrag (currency), Datum (date),
+#                                Zweck (textarea), Status (select), Anhänge (file)
+#   • Zahlungsanweisung: same field set, linked to a Beschluss
+# Pods stores all configuration in the database; no custom PHP required.
+if ! $WP plugin install pods --activate; then
+  echo "    WARN: Could not install Pods plugin (check network)."
+fi
 
-# PublishPress – editorial workflow / status management
-$WP plugin install publishpress --activate || \
-  echo "    WARN: Could not install PublishPress plugin (check network)."
+# Admin Columns – configures list-view columns in WP Admin without custom PHP.
+# After install, go to Settings → Admin Columns and configure columns for
+# Beschluss and Zahlungsanweisung: Fachschaft, Betrag, Status, Datum.
+if ! $WP plugin install codepress-admin-columns --activate; then
+  echo "    WARN: Could not install Admin Columns plugin (check network)."
+fi
 
-# ── Custom plugin ─────────────────────────────────────────────────────────────
-echo "==> Activating custom fs-finance-workflow plugin..."
-$WP plugin activate fs-finance-workflow || \
-  echo "    WARN: Could not activate fs-finance-workflow plugin."
+# PublishPress Statuses – lightweight editorial status management.
+# Provides the workflow statuses (submitted, approved, etc.) via UI configuration.
+if ! $WP plugin install publishpress-statuses --activate; then
+  echo "    WARN: Could not install PublishPress Statuses plugin (check network)."
+fi
 
 # ── Remove default content ────────────────────────────────────────────────────
 echo "==> Cleaning up default WordPress content..."
@@ -97,3 +113,11 @@ echo ""
 echo "==> WordPress setup complete."
 echo "    URL:   ${WP_URL}"
 echo "    Admin: ${WP_ADMIN_USER}"
+echo ""
+echo "    Next steps:"
+echo "    1. Open ${WP_URL}/wp-admin and log in."
+echo "    2. Go to Pods Admin → Add New to create Beschluss and Zahlungsanweisung content types."
+echo "    3. Add fields: Fachschaft, Betrag, Datum, Zweck, Status, Anhänge."
+echo "    4. Go to Settings → Admin Columns to configure list columns."
+echo "    5. Configure OpenID Connect settings for Keycloak SSO."
+
