@@ -1,0 +1,82 @@
+{
+  "id": "fs-finance",
+  "realm": "fs-finance",
+  "displayName": "FS Finanzportal",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "portal_admin",
+        "description": "Full administrative access to the portal"
+      },
+      {
+        "name": "asta_finance",
+        "description": "AStA finance team – responsible for final accounting"
+      },
+      {
+        "name": "asta_reviewer",
+        "description": "AStA reviewer – reviews and approves Beschlüsse"
+      },
+      {
+        "name": "fachschaft_finance",
+        "description": "Fachschaft finance officer – creates Beschlüsse and Zahlungsanweisungen"
+      },
+      {
+        "name": "fachschaft_reader",
+        "description": "Fachschaft member – read-only access to own Fachschaft data"
+      },
+      {
+        "name": "auditor",
+        "description": "External or internal auditor – read-only access to all data"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "wordpress",
+      "name": "FS Finanzportal WordPress",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "demo-fachschaft",
+      "enabled": true,
+      "email": "demo-fachschaft@example.com",
+      "firstName": "Demo",
+      "lastName": "Fachschaft",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["fachschaft_finance"]
+    }
+  ]
+}

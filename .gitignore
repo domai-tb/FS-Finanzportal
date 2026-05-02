@@ -1,0 +1,19 @@
+# WordPress uploads, cache, and generated files
+wordpress/wp-content/uploads/
+wordpress/wp-content/cache/
+wordpress/wp-content/upgrade/
+
+# MariaDB / PostgreSQL data volumes are managed by Docker – never commit them
+data/
+
+# Environment file (copy from .env.example)
+.env
+
+# macOS
+.DS_Store
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
