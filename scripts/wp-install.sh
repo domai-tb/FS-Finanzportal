@@ -72,6 +72,9 @@ echo "==> Installing and activating WordPress plugins..."
 install_plugin daggerhart-openid-connect-generic
 install_plugin pods
 install_plugin codepress-admin-columns
+install_plugin members
+install_plugin content-control
+install_plugin publishpress-statuses
 
 echo "==> Cleaning up default WordPress content..."
 $WP post delete 1 --force 2>/dev/null || true

@@ -1,6 +1,7 @@
 <?php
 /**
- * Idempotently creates the portal page, Fachschaften, demo users, and demo data.
+ * Idempotently creates roles, an admin entry page, Fachschaften, demo users,
+ * and demo data for the configured-plugin prototype.
  */
 
 function fsfp_cli_role(string $role, string $label, string $clone = ''): void
@@ -51,7 +52,7 @@ function fsfp_cli_upsert_post(string $post_type, string $slug, string $title, ar
     return (int) $post_id;
 }
 
-function fsfp_cli_upsert_user(string $login, string $email, string $role, string $fachschaft = ''): int
+function fsfp_cli_upsert_user(string $login, string $email, string $role): int
 {
     $user = get_user_by('login', $login);
     if (!$user) {
@@ -68,12 +69,6 @@ function fsfp_cli_upsert_user(string $login, string $email, string $role, string
         'display_name' => ucwords(str_replace('-', ' ', $login)),
         'user_email' => $email,
     ]);
-
-    if ($fachschaft !== '') {
-        update_user_meta($user->ID, 'fsfp_fachschaft', sanitize_title($fachschaft));
-    } else {
-        delete_user_meta($user->ID, 'fsfp_fachschaft');
-    }
 
     return (int) $user->ID;
 }
@@ -93,7 +88,9 @@ fsfp_cli_add_caps('fachschaft_reader', ['read']);
 fsfp_cli_add_caps('auditor', ['read']);
 
 $dashboard = get_page_by_path('dashboard', OBJECT, 'page');
-$dashboard_content = '<!-- wp:shortcode -->[fs_finanzportal_dashboard]<!-- /wp:shortcode -->';
+$dashboard_content = '<!-- wp:heading --><h2>Fachschaftsfinanzen</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Die Workflow-Verwaltung erfolgt in WordPress über die konfigurierten Inhaltstypen, Rollen, Pods-Felder und Listenansichten.</p><!-- /wp:paragraph -->
+<!-- wp:list --><ul><li><a href="/wp-admin/edit.php?post_type=beschluss">Beschlüsse verwalten</a></li><li><a href="/wp-admin/post-new.php?post_type=beschluss">Beschluss erstellen</a></li><li><a href="/wp-admin/edit.php?post_type=zahlungsanweisung">Zahlungsanweisungen verwalten</a></li><li><a href="/wp-admin/edit.php?post_type=fachschaft">Fachschaften verwalten</a></li></ul><!-- /wp:list -->';
 if ($dashboard) {
     wp_update_post([
         'ID' => $dashboard->ID,
@@ -123,15 +120,15 @@ foreach ($fachschaften as $slug => $title) {
 }
 
 $users = [
-    ['demo-fachschaft', 'demo-fachschaft@example.com', 'fachschaft_finance', 'informatik'],
-    ['demo-philosophie', 'demo-philosophie@example.com', 'fachschaft_reader', 'philosophie'],
-    ['demo-asta', 'demo-asta@example.com', 'asta_finance', ''],
-    ['demo-reviewer', 'demo-reviewer@example.com', 'asta_reviewer', ''],
-    ['demo-auditor', 'demo-auditor@example.com', 'auditor', ''],
+    ['demo-fachschaft', 'demo-fachschaft@example.com', 'fachschaft_finance'],
+    ['demo-philosophie', 'demo-philosophie@example.com', 'fachschaft_reader'],
+    ['demo-asta', 'demo-asta@example.com', 'asta_finance'],
+    ['demo-reviewer', 'demo-reviewer@example.com', 'asta_reviewer'],
+    ['demo-auditor', 'demo-auditor@example.com', 'auditor'],
 ];
 
 foreach ($users as $user) {
-    fsfp_cli_upsert_user($user[0], $user[1], $user[2], $user[3]);
+    fsfp_cli_upsert_user($user[0], $user[1], $user[2]);
 }
 
 $file = getenv('WP_CONFIG_DIR') . '/demo/beschluesse.json';
@@ -152,16 +149,6 @@ foreach ($items as $item) {
 
     update_post_meta($post_id, 'beschluss_status', $item['status'] ?? 'draft');
 
-    if (!get_post_meta($post_id, '_fsfp_status_history')) {
-        add_post_meta($post_id, '_fsfp_status_history', [
-            'from' => '',
-            'to' => $item['status'] ?? 'draft',
-            'user_id' => 0,
-            'user' => 'Setup',
-            'timestamp' => current_time('mysql'),
-            'comment' => 'Demo-Datensatz',
-        ]);
-    }
 }
 
 WP_CLI::success('Portal content configured.');

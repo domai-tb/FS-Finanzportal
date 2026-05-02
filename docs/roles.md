@@ -5,9 +5,10 @@ All roles are defined in the Keycloak realm **`fs-finance`**
 during setup. The local prototype seeds matching WordPress users for the
 Keycloak demo accounts so OpenID Connect can link by email.
 
-Fachschaft ownership is currently stored in WordPress user meta
-`fsfp_fachschaft`. This is a temporary prototype mechanism until Keycloak group
-or claim based Fachschaft mapping is added.
+The no-custom-code implementation uses WordPress roles and capabilities for
+coarse authorization. It does not enforce per-Fachschaft row-level isolation or
+strict status-transition guards at runtime; those rules require custom code or
+a more specialized workflow plugin.
 
 ---
 
@@ -51,13 +52,12 @@ or claim based Fachschaft mapping is added.
 | Attribute | Value |
 |-----------|-------|
 | **Assigned to** | Finance officers of a specific Fachschaft |
-| **Scope**       | Own Fachschaft only |
+| **Scope**       | Intended own Fachschaft; not technically enforced per record in the no-code prototype |
 | **Permissions** | Create, edit, and submit Beschlüsse and Zahlungsanweisungen; upload Belege (attachments); view own history |
 | **Typical user**| Fachschafts-Finanzbeauftragte/-r |
 
-> **Note**: A user can hold this role for multiple Fachschaften simultaneously.
-> The Keycloak role should then carry a `fachschaft_id` attribute.
-> (TODO: design this claim once multi-tenancy is needed.)
+> **Note**: Multi-Fachschaft membership should be modeled in Keycloak groups or
+> claims if custom enforcement is reintroduced later.
 
 ---
 
@@ -66,7 +66,7 @@ or claim based Fachschaft mapping is added.
 | Attribute | Value |
 |-----------|-------|
 | **Assigned to** | Regular Fachschaft members |
-| **Scope**       | Own Fachschaft only |
+| **Scope**       | Intended own Fachschaft; not technically enforced per record in the no-code prototype |
 | **Permissions** | Read-only access to own Fachschaft's Beschlüsse and Zahlungsanweisungen |
 | **Typical user**| Fachschaftsmitglied (general member) |
 
@@ -88,11 +88,11 @@ or claim based Fachschaft mapping is added.
 | Action                                   | portal_admin | asta_finance | asta_reviewer | fachschaft_finance | fachschaft_reader | auditor |
 |------------------------------------------|:---:|:---:|:---:|:---:|:---:|:---:|
 | Manage users & settings                  | ✅  | ❌  | ❌  | ❌  | ❌  | ❌  |
-| Read all Fachschaften                    | ✅  | ✅  | ✅  | ❌  | ❌  | ✅  |
-| Read own Fachschaft                      | ✅  | ✅  | ✅  | ✅  | ✅  | ✅  |
+| Read all Fachschaften                    | ✅  | ✅  | ✅  | Via list visibility | Via list visibility | ✅  |
+| Read own Fachschaft                      | ✅  | ✅  | ✅  | Operational convention | Operational convention | ✅  |
 | Create / edit Beschluss                  | ✅  | ✅  | ❌  | ✅  | ❌  | ❌  |
-| Submit Beschluss for review              | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
-| Approve / reject / request correction    | ✅  | ✅  | Rückfrage only | ❌  | ❌  | ❌  |
+| Submit Beschluss for review              | ✅  | ❌  | ❌  | Via status field | ❌  | ❌  |
+| Approve / reject / request correction    | ✅  | Via status field | Via status field | ❌  | ❌  | ❌  |
 | Create / edit Zahlungsanweisung          | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
 | Upload Belege                            | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
 | Export data for accounting               | ✅  | ✅  | ❌  | ❌  | ❌  | ❌  |

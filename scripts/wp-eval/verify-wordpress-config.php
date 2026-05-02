@@ -56,8 +56,12 @@ foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'fachschaft_finance',
 }
 
 $dashboard = get_page_by_path('dashboard', OBJECT, 'page');
-if (!$dashboard || !str_contains($dashboard->post_content, '[fs_finanzportal_dashboard]')) {
-    fs_finanzportal_verify_fail('Dashboard page is missing or does not contain the portal shortcode.');
+if (!$dashboard || str_contains($dashboard->post_content, '[fs_finanzportal_dashboard]')) {
+    fs_finanzportal_verify_fail('Dashboard page is missing or still depends on the custom portal shortcode.');
+}
+
+if (!str_contains($dashboard->post_content, 'post_type=beschluss')) {
+    fs_finanzportal_verify_fail('Dashboard page does not link to the configured Beschluss admin workflow.');
 }
 
 foreach (['informatik', 'philosophie', 'maschinenbau'] as $slug) {

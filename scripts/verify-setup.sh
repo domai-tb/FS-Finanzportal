@@ -25,6 +25,9 @@ echo "==> Verifying required WordPress plugins..."
 $WP plugin is-active pods
 $WP plugin is-active daggerhart-openid-connect-generic
 $WP plugin is-active codepress-admin-columns
+$WP plugin is-active members
+$WP plugin is-active content-control
+$WP plugin is-active publishpress-statuses
 
 echo "==> Verifying WordPress content model, roles, OIDC, and demo data..."
 $WP eval-file /scripts/wp-eval/verify-wordpress-config.php

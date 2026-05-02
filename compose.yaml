@@ -46,7 +46,6 @@ services:
       WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
     volumes:
       - wp_data:/var/www/html
-      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/wp-login.php"]
       interval: 15s
@@ -65,7 +64,6 @@ services:
         condition: service_healthy
     volumes:
       - wp_data:/var/www/html
-      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
       - ./scripts/wp-install.sh:/scripts/wp-install.sh:ro
       - ./scripts/configure-wordpress.sh:/scripts/configure-wordpress.sh:ro
       - ./scripts/wp-eval:/scripts/wp-eval:ro
@@ -125,6 +123,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
       KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_REALM: ${KC_REALM:-fs-finance}
       KC_WORDPRESS_CLIENT_ID: ${KC_WORDPRESS_CLIENT_ID:-wordpress}
       KC_WORDPRESS_CLIENT_SECRET: ${KC_WORDPRESS_CLIENT_SECRET}

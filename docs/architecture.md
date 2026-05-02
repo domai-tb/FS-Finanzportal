@@ -20,7 +20,7 @@ Browser
   ├─── http://localhost:8080  ──►  WordPress (Apache/PHP)
   │                                   │
   │                                   ├── MariaDB (wp_* tables)
-  │                                   └── Plugin configuration (no custom PHP)
+  │                                   └── Plugin configuration (no runtime custom PHP)
   │                                         ├── Pods: content types
   │                                         │     └── Beschluss
   │                                         └── Admin Columns: list views
@@ -44,34 +44,44 @@ Browser
 
 ---
 
-## Plugin Configuration (no custom PHP)
+## Plugin Configuration (no runtime custom PHP)
 
-The first prototype is implemented entirely through plugin configuration –
-no custom PHP is needed at this stage.
+The WordPress runtime is implemented through plugin configuration. There are no
+custom MU-plugins or theme/plugin PHP files loaded by WordPress.
 
 | Concern                  | Plugin                                    |
 |--------------------------|-------------------------------------------|
 | SSO / OIDC login         | `daggerhart-openid-connect-generic`       |
 | Content types & fields   | `pods`                                    |
 | List-view columns        | `codepress-admin-columns`                 |
-| Workflow status mgmt     | Pods select field `beschluss_status`      |
+| Roles / capabilities     | `members`                                 |
+| Page restriction         | `content-control`                         |
+| Workflow status mgmt     | `publishpress-statuses` plus Pods select field `beschluss_status` |
 
 ### Pods content types
 
-The first prototype defines one custom content type:
+The first prototype defines these configured custom content types:
 
-| Field       | Pods field type | Notes                                      |
-|-------------|-----------------|-------------------------------------------|
-| Fachschaft  | Text            | Name of the student council unit          |
-| Betrag      | Currency        | Requested amount in EUR                   |
-| Beschlussdatum | Date         | Date of the Beschluss                     |
-| Zweck       | Paragraph Text  | Purpose / description                     |
-| Status      | Pick (select)   | Stored as `beschluss_status` because `status` is reserved by Pods |
-| Anhänge     | File / Image    | Supporting documents (Belege)             |
-| Zahlungsanweisung reference | Text | Plain reference for v1, not a separate workflow object |
+| Content type | Purpose |
+|--------------|---------|
+| Fachschaft | Student council units used by list filters |
+| Beschluss | Main workflow record |
+| Zahlungsanweisung | Payment instruction record for later workflow expansion |
 
-Custom PHP code will only be added when existing plugin capabilities are
-genuinely insufficient.
+The `beschluss` type has these configured fields:
+
+| Field | Pods field type | Notes |
+|-------|-----------------|-------|
+| Fachschaft | Text | Name of the student council unit |
+| Betrag | Currency | Requested amount in EUR |
+| Beschlussdatum | Date | Date of the Beschluss |
+| Zweck | Paragraph Text | Purpose / description |
+| Status | Pick (select) | Stored as `beschluss_status` because `status` is reserved by Pods |
+| Anhänge | File / Image | Supporting documents (Belege) |
+| Zahlungsanweisung reference | Text | Plain reference for v1 |
+
+Runtime custom PHP is intentionally absent. Reproducible setup is handled by
+WP-CLI scripts that import plugin configuration and seed demo content.
 
 ---
 
@@ -86,8 +96,7 @@ User ──► WordPress login page
                                        │
                               WordPress receives JWT / user info
                                        │
-                              Role claim → WP capability mapping
-                              (TODO: implement in plugin)
+                              WordPress user and role assignment
 ```
 
 ---
@@ -95,7 +104,7 @@ User ──► WordPress login page
 ## Data Flow – Beschluss Lifecycle
 
 ```
-fachschaft_finance creates Beschluss  [status: draft]
+fachschaft_finance creates Beschluss in wp-admin  [status: draft]
         │
         ▼
   Submits for review                  [status: submitted]
@@ -108,7 +117,7 @@ asta_reviewer approves  requests correction
         │               fachschaft_finance corrects
         │               [status: submitted again]
         ▼
-  AStA finance exports for accounting
+  AStA finance filters/exports in wp-admin
         │
         ▼
   [status: archived]
