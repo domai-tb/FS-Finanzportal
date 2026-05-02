@@ -22,10 +22,8 @@ Browser
   │                                   ├── MariaDB (wp_* tables)
   │                                   └── Plugin configuration (no custom PHP)
   │                                         ├── Pods: content types
-  │                                         │     ├── Beschluss
-  │                                         │     └── Zahlungsanweisung
-  │                                         ├── Admin Columns: list views
-  │                                         └── PublishPress Statuses: workflow
+  │                                         │     └── Beschluss
+  │                                         └── Admin Columns: list views
   │
   └─── http://localhost:8180  ──►  Keycloak (SSO / OIDC)
                                        │
@@ -56,20 +54,21 @@ no custom PHP is needed at this stage.
 | SSO / OIDC login         | `daggerhart-openid-connect-generic`       |
 | Content types & fields   | `pods`                                    |
 | List-view columns        | `codepress-admin-columns`                 |
-| Workflow status mgmt     | `publishpress-statuses`                   |
+| Workflow status mgmt     | Pods select field `beschluss_status`      |
 
 ### Pods content types
 
-Both content types share the same field set:
+The first prototype defines one custom content type:
 
 | Field       | Pods field type | Notes                                      |
 |-------------|-----------------|-------------------------------------------|
 | Fachschaft  | Text            | Name of the student council unit          |
 | Betrag      | Currency        | Requested amount in EUR                   |
-| Datum       | Date            | Date of the Beschluss / payment order     |
+| Beschlussdatum | Date         | Date of the Beschluss                     |
 | Zweck       | Paragraph Text  | Purpose / description                     |
-| Status      | Pick (select)   | Managed by PublishPress Statuses          |
+| Status      | Pick (select)   | Stored as `beschluss_status` because `status` is reserved by Pods |
 | Anhänge     | File / Image    | Supporting documents (Belege)             |
+| Zahlungsanweisung reference | Text | Plain reference for v1, not a separate workflow object |
 
 Custom PHP code will only be added when existing plugin capabilities are
 genuinely insufficient.

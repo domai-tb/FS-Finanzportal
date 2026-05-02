@@ -45,14 +45,16 @@
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
+      "secret": "${KC_WORDPRESS_CLIENT_SECRET}",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
-        "http://localhost:8080/*"
+        "${WP_URL}/*",
+        "${WP_URL}/wp-admin/admin-ajax.php?action=openid-connect-authorize"
       ],
       "webOrigins": [
-        "http://localhost:8080"
+        "${WP_URL}"
       ],
       "defaultClientScopes": [
         "openid",
@@ -73,7 +75,7 @@
         {
           "type": "password",
           "value": "demo_secret",
-          "temporary": true
+          "temporary": false
         }
       ],
       "realmRoles": ["fachschaft_finance"]

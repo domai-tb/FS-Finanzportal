@@ -46,6 +46,7 @@ services:
       WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
     volumes:
       - wp_data:/var/www/html
+      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/wp-login.php"]
       interval: 15s
@@ -64,7 +65,11 @@ services:
         condition: service_healthy
     volumes:
       - wp_data:/var/www/html
+      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
       - ./scripts/wp-install.sh:/scripts/wp-install.sh:ro
+      - ./scripts/configure-wordpress.sh:/scripts/configure-wordpress.sh:ro
+      - ./scripts/wp-eval:/scripts/wp-eval:ro
+      - ./wordpress/config:/wordpress/config:ro
     environment:
       WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
       WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
@@ -75,6 +80,12 @@ services:
       WP_ADMIN_USER: ${WP_ADMIN_USER}
       WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
       WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
+      WP_CONFIG_DIR: /wordpress/config
+      KC_REALM: ${KC_REALM:-fs-finance}
+      KC_WORDPRESS_CLIENT_ID: ${KC_WORDPRESS_CLIENT_ID:-wordpress}
+      KC_WORDPRESS_CLIENT_SECRET: ${KC_WORDPRESS_CLIENT_SECRET}
+      KC_EXTERNAL_URL: http://localhost:${KC_PORT:-8180}
+      KC_INTERNAL_URL: http://keycloak:8080
     entrypoint: ["sh", "/scripts/wp-install.sh"]
     profiles:
       - setup   # only run with: docker compose --profile setup up wp-cli
@@ -97,6 +108,8 @@ services:
 
   # ─── Keycloak ─────────────────────────────────────────────
   keycloak:
+    # Official Keycloak container image:
+    # https://www.keycloak.org/server/containers
     image: quay.io/keycloak/keycloak:26.2
     restart: unless-stopped
     depends_on:
@@ -112,12 +125,18 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
       KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_REALM: ${KC_REALM:-fs-finance}
+      KC_WORDPRESS_CLIENT_ID: ${KC_WORDPRESS_CLIENT_ID:-wordpress}
+      KC_WORDPRESS_CLIENT_SECRET: ${KC_WORDPRESS_CLIENT_SECRET}
+      WP_URL: ${WP_URL}
     volumes:
       # Import realm on first start
       - ./keycloak/realms:/opt/keycloak/data/import:ro
     command: ["start-dev", "--import-realm"]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      # The official Keycloak image does not include curl. Check that the
+      # HTTP listener is accepting connections without adding a custom image.
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/localhost/8080'"]
       interval: 20s
       timeout: 10s
       retries: 15

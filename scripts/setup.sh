@@ -35,21 +35,40 @@ set +o allexport
 echo "==> Starting core services (mariadb, wordpress, postgres, keycloak)..."
 docker compose up -d mariadb wordpress postgres keycloak
 
-echo "==> Waiting for WordPress to become healthy..."
-for i in $(seq 1 30); do
-  STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
-           "$(docker compose ps -q wordpress)" 2>/dev/null || true)
-  if [ "$STATUS" = "healthy" ]; then
-    echo "    WordPress is healthy."
-    break
-  fi
-  echo "    Attempt $i/30 – status: ${STATUS:-unknown}. Retrying in 10 s..."
-  sleep 10
-done
+wait_for_service() {
+  local service="$1"
+  local label="$2"
+
+  echo "==> Waiting for ${label} to become healthy..."
+  for i in $(seq 1 30); do
+    STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
+             "$(docker compose ps -q "$service")" 2>/dev/null || true)
+    if [ "$STATUS" = "healthy" ]; then
+      echo "    ${label} is healthy."
+      return 0
+    fi
+    echo "    Attempt $i/30 – status: ${STATUS:-unknown}. Retrying in 10 s..."
+    sleep 10
+  done
+
+  echo "ERROR: ${label} did not become healthy in time." >&2
+  exit 1
+}
+
+wait_for_service wordpress WordPress
+wait_for_service keycloak Keycloak
+
+# ── Configure Keycloak ────────────────────────────────────────────────────────
+echo "==> Configuring Keycloak realm and WordPress OIDC client..."
+"$SCRIPT_DIR/configure-keycloak.sh"
 
 # ── Run WP-CLI setup ──────────────────────────────────────────────────────────
-echo "==> Running WordPress installation via WP-CLI..."
+echo "==> Running WordPress installation and configuration via WP-CLI..."
 docker compose --profile setup run --rm wp-cli
+
+# ── Verify setup ──────────────────────────────────────────────────────────────
+echo "==> Verifying automated setup..."
+"$SCRIPT_DIR/verify-setup.sh"
 
 echo ""
 echo "============================================================"

@@ -30,9 +30,10 @@ cd FS-Finanzportal
 
 # 2. Copy and adjust the environment file
 cp .env.example .env
-# Edit .env and set strong passwords before going to production!
+# Edit .env and set strong passwords before going to production.
+# Keep KC_WORDPRESS_CLIENT_SECRET set; it is injected into Keycloak and WordPress OIDC config.
 
-# 3. Start the stack and install WordPress
+# 3. Start the stack, install WordPress, and apply reproducible configuration
 ./scripts/setup.sh
 ```
 
@@ -57,11 +58,17 @@ docker compose logs -f
 # Run only WordPress and database (no Keycloak)
 docker compose up -d mariadb wordpress
 
-# Run WP-CLI setup manually (e.g. after reset)
+# Run WP-CLI setup/configuration manually (e.g. after reset)
 docker compose --profile setup run --rm wp-cli
 
+# Re-apply Keycloak client/role configuration
+./scripts/configure-keycloak.sh
+
+# Verify the automated setup
+./scripts/verify-setup.sh
+
 # Open an interactive WP-CLI shell
-docker compose run --rm wp-cli wp --allow-root shell
+docker compose run --rm --entrypoint wp wp-cli --allow-root --path=/var/www/html shell
 
 # Connect to MariaDB
 docker compose exec mariadb mariadb -u wordpress -pwordpress_secret wordpress
@@ -92,10 +99,16 @@ FS-Finanzportal/
 ├── .env.example                        # Template for environment variables
 ├── scripts/
 │   ├── setup.sh                        # Start stack + run WP-CLI setup
-│   └── wp-install.sh                   # WP-CLI: install WP + plugins
+│   ├── wp-install.sh                   # WP-CLI: install WP + plugins
+│   ├── configure-keycloak.sh           # Idempotent Keycloak realm/client setup
+│   ├── configure-wordpress.sh          # Idempotent WP plugin/content setup
+│   ├── verify-setup.sh                 # Automated setup verification
+│   └── wp-eval/                        # Temporary WP-CLI PHP helpers
+├── wordpress/
+│   └── config/                         # Versioned plugin/model/demo config
 ├── keycloak/
 │   └── realms/
-│       └── fs-finance-realm.json       # Keycloak realm export (placeholder)
+│       └── fs-finance-realm.json       # Keycloak realm import baseline
 └── docs/
     ├── architecture.md                 # System architecture overview
     └── roles.md                        # Role definitions and permissions
@@ -116,4 +129,3 @@ FS-Finanzportal/
 2. Follow the existing code style (simple, readable Bash and Docker Compose).
 3. Prefer existing WordPress plugins over custom PHP code.
 4. Open a pull request with a clear description of the change.
-
