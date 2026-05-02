@@ -55,6 +55,10 @@ services:
   # ─── WP-CLI (one-shot setup) ──────────────────────────────
   wp-cli:
     image: wordpress:cli
+    # wordpress:cli is Alpine-based (www-data uid 82) while wordpress:6-apache
+    # is Debian-based (www-data uid 33). Running as uid/gid 33 ensures wp-cli
+    # can write to the volume that was populated by the Apache container.
+    user: "33:33"
     depends_on:
       wordpress:
         condition: service_healthy
