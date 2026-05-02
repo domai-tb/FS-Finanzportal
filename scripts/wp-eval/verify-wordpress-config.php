@@ -12,6 +12,12 @@ if (!post_type_exists('beschluss')) {
     fs_finanzportal_verify_fail('Post type beschluss is not registered.');
 }
 
+foreach (['fachschaft', 'zahlungsanweisung'] as $post_type) {
+    if (!post_type_exists($post_type)) {
+        fs_finanzportal_verify_fail("Post type {$post_type} is not registered.");
+    }
+}
+
 $required_fields = [
     'fachschaft',
     'beschlussdatum',
@@ -46,6 +52,36 @@ foreach ($required_fields as $field_name) {
 foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'fachschaft_finance', 'fachschaft_reader', 'auditor'] as $role_name) {
     if (!get_role($role_name)) {
         fs_finanzportal_verify_fail("WordPress role {$role_name} is missing.");
+    }
+}
+
+$dashboard = get_page_by_path('dashboard', OBJECT, 'page');
+if (!$dashboard || !str_contains($dashboard->post_content, '[fs_finanzportal_dashboard]')) {
+    fs_finanzportal_verify_fail('Dashboard page is missing or does not contain the portal shortcode.');
+}
+
+foreach (['informatik', 'philosophie', 'maschinenbau'] as $slug) {
+    $fachschaft = get_page_by_path($slug, OBJECT, 'fachschaft');
+    if (!$fachschaft) {
+        fs_finanzportal_verify_fail("Demo Fachschaft {$slug} is missing.");
+    }
+
+    $duplicates = get_posts([
+        'post_type' => 'fachschaft',
+        'name' => $slug,
+        'post_status' => 'any',
+        'fields' => 'ids',
+        'posts_per_page' => -1,
+    ]);
+
+    if (count($duplicates) !== 1) {
+        fs_finanzportal_verify_fail("Demo Fachschaft {$slug} is not idempotent; found " . count($duplicates) . ' records.');
+    }
+}
+
+foreach (['demo-fachschaft', 'demo-philosophie', 'demo-asta', 'demo-reviewer', 'demo-auditor'] as $login) {
+    if (!get_user_by('login', $login)) {
+        fs_finanzportal_verify_fail("Demo WordPress user {$login} is missing.");
     }
 }
 

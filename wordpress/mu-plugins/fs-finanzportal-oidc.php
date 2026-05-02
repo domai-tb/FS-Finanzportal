@@ -34,6 +34,8 @@ add_filter(
     2
 );
 
+require_once __DIR__ . '/fs-finanzportal/portal.php';
+
 add_filter(
     'http_request_args',
     static function (array $args, string $url): array {

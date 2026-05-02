@@ -44,6 +44,51 @@ After setup:
 | WordPress | <http://localhost:8080>      | See `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` in `.env` |
 | Keycloak  | <http://localhost:8180>      | See `KC_BOOTSTRAP_ADMIN_USERNAME` / `KC_BOOTSTRAP_ADMIN_PASSWORD` in `.env` |
 
+Main portal entry point:
+
+| Page | URL |
+|------|-----|
+| Dashboard | <http://localhost:8080/dashboard/> |
+
+Unauthenticated users are redirected to the WordPress/OpenID Connect login flow.
+Portal users are expected to work from `/dashboard`, not from wp-admin.
+
+### Demo users
+
+The setup creates matching Keycloak and WordPress demo users. All demo passwords
+are `demo_secret`.
+
+| Login | Role | Fachschaft scope |
+|-------|------|------------------|
+| `demo-fachschaft` | `fachschaft_finance` | Fachschaft Informatik |
+| `demo-philosophie` | `fachschaft_reader` | Fachschaft Philosophie |
+| `demo-asta` | `asta_finance` | All Fachschaften |
+| `demo-reviewer` | `asta_reviewer` | All Fachschaften |
+| `demo-auditor` | `auditor` | All Fachschaften |
+
+For the prototype, Fachschaft ownership is stored in WordPress user meta
+(`fsfp_fachschaft`). This is intentionally temporary until a robust Keycloak
+group or claim mapping is introduced.
+
+### Beschluss workflow
+
+The dashboard supports the first Fachschaft finance workflow:
+
+| Status | German label |
+|--------|--------------|
+| `draft` | Entwurf |
+| `submitted` | Eingereicht |
+| `correction_requested` | Rückfrage |
+| `approved` | Genehmigt |
+| `rejected` | Abgelehnt |
+| `archived` | Archiviert |
+
+Fachschaft finance users can create and edit Beschlüsse for their own
+Fachschaft while they are drafts or in Rückfrage, then submit them. AStA finance
+users can see all Beschlüsse, edit them, request correction, approve, reject,
+and archive approved records. AStA reviewers can request correction on submitted
+records. Readers and auditors are read-only.
+
 ---
 
 ## Development commands

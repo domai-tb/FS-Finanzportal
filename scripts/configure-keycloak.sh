@@ -120,23 +120,72 @@ kc update "clients/${CLIENT_UUID}" \
   -s "redirectUris=[\"${WP_URL}/*\",\"${WP_URL}/wp-admin/admin-ajax.php?action=openid-connect-authorize\"]" \
   -s "webOrigins=[\"${WP_URL}\"]" >/dev/null
 
-DEMO_USER_ID="$(
-  kc get users \
-    -r "$KC_REALM" \
-    -q username=demo-fachschaft \
-    --fields id \
-    --format csv 2>/dev/null \
-    | awk -F, 'NF && $1 != "id" { gsub(/"/, "", $1); print $1; exit }'
-)"
+ensure_demo_user() {
+  local username="$1"
+  local email="$2"
+  local first_name="$3"
+  local last_name="$4"
+  local role="$5"
+  local user_id
 
-if [ -n "$DEMO_USER_ID" ]; then
-  echo "==> Ensuring demo-fachschaft password is non-temporary..."
+  user_id="$(
+    kc get users \
+      -r "$KC_REALM" \
+      -q "username=${username}" \
+      --fields id \
+      --format csv 2>/dev/null \
+      | awk -F, 'NF && $1 != "id" { gsub(/"/, "", $1); print $1; exit }'
+  )"
+
+  if [ -z "$user_id" ]; then
+    kc create users \
+      -r "$KC_REALM" \
+      -s "username=${username}" \
+      -s enabled=true \
+      -s "email=${email}" \
+      -s "firstName=${first_name}" \
+      -s "lastName=${last_name}" >/dev/null
+
+    user_id="$(
+      kc get users \
+        -r "$KC_REALM" \
+        -q "username=${username}" \
+        --fields id \
+        --format csv 2>/dev/null \
+        | awk -F, 'NF && $1 != "id" { gsub(/"/, "", $1); print $1; exit }'
+    )"
+  else
+    kc update "users/${user_id}" \
+      -r "$KC_REALM" \
+      -s enabled=true \
+      -s "email=${email}" \
+      -s "firstName=${first_name}" \
+      -s "lastName=${last_name}" >/dev/null
+  fi
+
+  if [ -z "$user_id" ]; then
+    echo "ERROR: Could not resolve Keycloak user ${username}." >&2
+    exit 1
+  fi
+
   kc set-password \
     -r "$KC_REALM" \
-    --userid "$DEMO_USER_ID" \
+    --userid "$user_id" \
     --new-password demo_secret \
     --temporary=false >/dev/null
-fi
+
+  kc add-roles \
+    -r "$KC_REALM" \
+    --uusername "$username" \
+    --rolename "$role" >/dev/null 2>&1 || true
+}
+
+echo "==> Ensuring Keycloak demo users..."
+ensure_demo_user demo-fachschaft demo-fachschaft@example.com Demo Fachschaft fachschaft_finance
+ensure_demo_user demo-philosophie demo-philosophie@example.com Demo Philosophie fachschaft_reader
+ensure_demo_user demo-asta demo-asta@example.com Demo AStA asta_finance
+ensure_demo_user demo-reviewer demo-reviewer@example.com Demo Reviewer asta_reviewer
+ensure_demo_user demo-auditor demo-auditor@example.com Demo Auditor auditor
 
 echo "==> Keycloak configuration complete."
 echo "    Realm:  ${KC_REALM}"

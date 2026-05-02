@@ -2,21 +2,35 @@
   {
     "slug": "demo-beschluss-technik-budget",
     "title": "Demo: Technik-Budget Sommerfest",
-    "fachschaft": "Informatik",
+    "fachschaft": "informatik",
     "beschlussdatum": "2026-05-02",
     "betrag": "750.00",
     "zweck_beschreibung": "Budget für Technik und Infrastruktur des Sommerfests.",
     "status": "submitted",
-    "zahlungsanweisung_ref": "ZA-DEMO-001"
+    "zahlungsanweisung_ref": "ZA-DEMO-001",
+    "author": "demo-fachschaft"
   },
   {
     "slug": "demo-beschluss-erstsemester-material",
     "title": "Demo: Erstsemester-Material",
-    "fachschaft": "Maschinenbau",
+    "fachschaft": "maschinenbau",
     "beschlussdatum": "2026-05-02",
     "betrag": "320.50",
     "zweck_beschreibung": "Druck- und Materialkosten für die Erstsemesterbegrüßung.",
     "status": "approved",
-    "zahlungsanweisung_ref": "ZA-DEMO-002"
+    "zahlungsanweisung_ref": "ZA-DEMO-002",
+    "author": "demo-asta"
+  },
+  {
+    "slug": "demo-beschluss-literatur-philosophie",
+    "title": "Demo: Literatur für Lesekreis",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2026-04-20",
+    "betrag": "185.00",
+    "zweck_beschreibung": "Anschaffung von Literatur für einen studentischen Lesekreis.",
+    "status": "correction_requested",
+    "zahlungsanweisung_ref": "",
+    "notes": "Bitte Lieferant und genaue Ausgabe ergänzen.",
+    "author": "demo-philosophie"
   }
 ]

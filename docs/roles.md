@@ -1,12 +1,13 @@
 # Roles – FS-Finanzportal
 
 All roles are defined in the Keycloak realm **`fs-finance`**
-(see `keycloak/realms/fs-finance-realm.json`) and mapped to WordPress
-capabilities via the `daggerhart-openid-connect-generic` plugin.
+(see `keycloak/realms/fs-finance-realm.json`) and mirrored as WordPress roles
+during setup. The local prototype seeds matching WordPress users for the
+Keycloak demo accounts so OpenID Connect can link by email.
 
-> **TODO**: The actual WordPress capability mapping is not yet implemented.
-> Configure role → capability mapping via the OpenID Connect Generic plugin settings
-> once Keycloak integration is confirmed working.
+Fachschaft ownership is currently stored in WordPress user meta
+`fsfp_fachschaft`. This is a temporary prototype mechanism until Keycloak group
+or claim based Fachschaft mapping is added.
 
 ---
 
@@ -89,9 +90,9 @@ capabilities via the `daggerhart-openid-connect-generic` plugin.
 | Manage users & settings                  | ✅  | ❌  | ❌  | ❌  | ❌  | ❌  |
 | Read all Fachschaften                    | ✅  | ✅  | ✅  | ❌  | ❌  | ✅  |
 | Read own Fachschaft                      | ✅  | ✅  | ✅  | ✅  | ✅  | ✅  |
-| Create / edit Beschluss                  | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
+| Create / edit Beschluss                  | ✅  | ✅  | ❌  | ✅  | ❌  | ❌  |
 | Submit Beschluss for review              | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
-| Approve / request correction             | ✅  | ✅  | ✅  | ❌  | ❌  | ❌  |
+| Approve / reject / request correction    | ✅  | ✅  | Rückfrage only | ❌  | ❌  | ❌  |
 | Create / edit Zahlungsanweisung          | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
 | Upload Belege                            | ✅  | ❌  | ❌  | ✅  | ❌  | ❌  |
 | Export data for accounting               | ✅  | ✅  | ❌  | ❌  | ❌  | ❌  |

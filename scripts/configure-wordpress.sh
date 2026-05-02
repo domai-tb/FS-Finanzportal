@@ -47,79 +47,10 @@ else
 fi
 $WP rewrite flush --hard >/dev/null
 
-ensure_role() {
-  role="$1"
-  label="$2"
-  clone="${3:-}"
-
-  if $WP role exists "$role" >/dev/null 2>&1; then
-    echo "    Role ${role} already exists."
-  elif [ -n "$clone" ]; then
-    $WP role create "$role" "$label" --clone="$clone" >/dev/null
-  else
-    $WP role create "$role" "$label" >/dev/null
-  fi
-}
-
-add_caps() {
-  role="$1"
-  shift
-  $WP cap add "$role" "$@" >/dev/null
-}
-
-echo "==> Ensuring WordPress roles and baseline capabilities..."
-ensure_role portal_admin "Portal Admin" administrator
-ensure_role asta_finance "AStA Finance"
-ensure_role asta_reviewer "AStA Reviewer"
-ensure_role fachschaft_finance "Fachschaft Finance"
-ensure_role fachschaft_reader "Fachschaft Reader"
-ensure_role auditor "Auditor"
-
-add_caps portal_admin read upload_files edit_posts edit_others_posts edit_published_posts publish_posts delete_posts delete_others_posts delete_published_posts manage_options
-add_caps asta_finance read upload_files edit_posts edit_others_posts edit_published_posts publish_posts delete_posts delete_others_posts delete_published_posts
-add_caps asta_reviewer read edit_posts edit_others_posts edit_published_posts
-add_caps fachschaft_finance read upload_files edit_posts edit_published_posts publish_posts delete_posts delete_published_posts
-add_caps fachschaft_reader read
-add_caps auditor read
+echo "==> Ensuring portal roles, dashboard, users, Fachschaften, and demo Beschluesse..."
+$WP eval-file /scripts/wp-eval/ensure-portal-content.php
 
 echo "==> Importing Admin Columns configuration when supported..."
 $WP eval-file /scripts/wp-eval/import-admin-columns.php "${WP_CONFIG_DIR}/admin-columns/beschluss-columns.json"
-
-echo "==> Creating or updating deterministic demo Beschluesse..."
-$WP eval '
-  $file = getenv("WP_CONFIG_DIR") . "/demo/beschluesse.json";
-  $items = json_decode(file_get_contents($file), true);
-  if (!is_array($items)) {
-    fwrite(STDERR, "Invalid demo Beschluesse JSON\n");
-    exit(1);
-  }
-
-  foreach ($items as $item) {
-    $existing = get_page_by_path($item["slug"], OBJECT, "beschluss");
-    $post = [
-      "post_type" => "beschluss",
-      "post_title" => $item["title"],
-      "post_name" => $item["slug"],
-      "post_status" => "publish",
-    ];
-
-    if ($existing) {
-      $post["ID"] = $existing->ID;
-      $post_id = wp_update_post($post, true);
-    } else {
-      $post_id = wp_insert_post($post, true);
-    }
-
-    if (is_wp_error($post_id)) {
-      fwrite(STDERR, $post_id->get_error_message() . "\n");
-      exit(1);
-    }
-
-    foreach (["fachschaft", "beschlussdatum", "betrag", "zweck_beschreibung", "zahlungsanweisung_ref"] as $field) {
-      update_post_meta($post_id, $field, $item[$field] ?? "");
-    }
-    update_post_meta($post_id, "beschluss_status", $item["status"] ?? "draft");
-  }
-'
 
 echo "==> WordPress portal configuration complete."
