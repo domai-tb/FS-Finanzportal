@@ -17,3 +17,6 @@ data/
 .vscode/
 *.swp
 *.swo
+
+# Agents
+.codex

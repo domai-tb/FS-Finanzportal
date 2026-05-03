@@ -1,130 +1,146 @@
-# Architecture – FS-Finanzportal
+# Architecture and Configuration
 
-## Overview
+FS-Finanzportal is a local, reproducible WordPress workflow prototype. The
+runtime behavior comes from WordPress plugins and imported configuration files,
+not from a custom plugin.
 
-The FS-Finanzportal is a **low-code workflow prototype** that allows German
-university Fachschaften (student councils) to manage their internal finance
-processes digitally before handing off the final accounting to the AStA
-(Allgemeiner Studierendenausschuss).
+## System Overview
 
-The system deliberately **does not implement full accounting**. Its purpose is
-workflow documentation, approval tracking, and export preparation.
-
----
-
-## Component Diagram (logical)
-
-```
+```text
 Browser
-  │
-  ├─── http://localhost:8080  ──►  WordPress (Apache/PHP)
-  │                                   │
-  │                                   ├── MariaDB (wp_* tables)
-  │                                   └── Plugin configuration (no runtime custom PHP)
-  │                                         ├── Pods: content types
-  │                                         │     └── Beschluss
-  │                                         └── Admin Columns: list views
-  │
-  └─── http://localhost:8180  ──►  Keycloak (SSO / OIDC)
-                                       │
-                                       └── PostgreSQL (keycloak schema)
+  |-- WordPress on http://localhost:8080
+  |     |-- MariaDB stores WordPress data
+  |     |-- Pods provides content types and fields
+  |     |-- Admin Columns configures admin list views
+  |     `-- OpenID Connect Generic redirects login to Keycloak
+  |
+  `-- Keycloak on http://localhost:8180
+        `-- PostgreSQL stores realm, users, roles, and clients
 ```
 
----
+## Docker Services
 
-## Services
+| Service | Image | Purpose |
+|---------|-------|---------|
+| `wordpress` | `wordpress:6-apache` | Main application |
+| `mariadb` | `mariadb:11` | WordPress database |
+| `wp-cli` | `wordpress:cli` | One-shot WordPress setup container |
+| `keycloak` | `quay.io/keycloak/keycloak:26.2` | OIDC identity provider |
+| `postgres` | `postgres:16` | Keycloak database |
 
-| Service       | Image                           | Port (host) | Purpose                          |
-|---------------|---------------------------------|-------------|----------------------------------|
-| `wordpress`   | `wordpress:6-apache`            | 8080        | Main application                 |
-| `mariadb`     | `mariadb:11`                    | –           | WordPress database               |
-| `keycloak`    | `quay.io/keycloak/keycloak:26.2`| 8180        | SSO / OpenID Connect provider    |
-| `postgres`    | `postgres:16`                   | –           | Keycloak database                |
-| `wp-cli`      | `wordpress:cli`                 | –           | One-shot setup helper (profile)  |
+`wp-cli` only runs when the `setup` profile is used. It mounts the versioned
+configuration from `wordpress/config/` read-only and applies it to WordPress.
 
----
+## Configuration Sources
 
-## Plugin Configuration (no runtime custom PHP)
+| File | Purpose |
+|------|---------|
+| `.env` | Local secrets, URLs, ports, and database credentials |
+| `compose.yaml` | Service definitions, volumes, health checks, and mounts |
+| `keycloak/realms/fs-finance-realm.json` | Baseline Keycloak realm import |
+| `wordpress/config/oidc/openid-connect-generic.settings.json` | OIDC plugin defaults |
+| `wordpress/config/pods/beschluss-pods-package.json` | Pods content model |
+| `wordpress/config/admin-columns/beschluss-columns.json` | Beschluss list columns |
+| `wordpress/config/demo/beschluesse.json` | Seed Beschluss records |
 
-The WordPress runtime is implemented through plugin configuration. There are no
-custom MU-plugins or theme/plugin PHP files loaded by WordPress.
+Runtime values such as `KC_WORDPRESS_CLIENT_SECRET`, URLs, and realm names are
+read from `.env` and injected during setup.
 
-| Concern                  | Plugin                                    |
-|--------------------------|-------------------------------------------|
-| SSO / OIDC login         | `daggerhart-openid-connect-generic`       |
-| Content types & fields   | `pods`                                    |
-| List-view columns        | `codepress-admin-columns`                 |
-| Roles / capabilities     | `members`                                 |
-| Page restriction         | `content-control`                         |
-| Workflow status mgmt     | `publishpress-statuses` plus Pods select field `beschluss_status` |
+## Setup Scripts
 
-### Pods content types
+| Script | Runs where | Responsibility |
+|--------|------------|----------------|
+| `scripts/setup.sh` | Host | Starts services and orchestrates setup |
+| `scripts/configure-keycloak.sh` | Host, via Keycloak CLI | Creates or updates realm, roles, client, and demo users |
+| `scripts/wp-install.sh` | `wp-cli` container | Installs WordPress and required plugins |
+| `scripts/configure-wordpress.sh` | `wp-cli` container | Imports OIDC, Pods, roles, content, and columns |
+| `scripts/verify-setup.sh` | Host | Verifies Keycloak and WordPress setup |
 
-The first prototype defines these configured custom content types:
+Helper files in `scripts/wp-eval/` run through `wp eval-file`. They keep the
+WordPress setup reproducible without becoming runtime code.
 
-| Content type | Purpose |
-|--------------|---------|
-| Fachschaft | Student council units used by list filters |
-| Beschluss | Main workflow record |
-| Zahlungsanweisung | Payment instruction record for later workflow expansion |
+## WordPress Plugins
 
-The `beschluss` type has these configured fields:
+| Plugin | Used for |
+|--------|----------|
+| `daggerhart-openid-connect-generic` | Keycloak login |
+| `pods` | Custom post types and fields |
+| `codepress-admin-columns` | Admin list columns |
+| `members` | Role and capability management |
+| `content-control` | Page access restrictions |
+| `publishpress-statuses` | Installed for workflow status support |
 
-| Field | Pods field type | Notes |
-|-------|-----------------|-------|
-| Fachschaft | Text | Name of the student council unit |
-| Betrag | Currency | Requested amount in EUR |
-| Beschlussdatum | Date | Date of the Beschluss |
-| Zweck | Paragraph Text | Purpose / description |
-| Status | Pick (select) | Stored as `beschluss_status` because `status` is reserved by Pods |
-| Anhänge | File / Image | Supporting documents (Belege) |
-| Zahlungsanweisung reference | Text | Plain reference for v1 |
+The current status values are stored in Pods fields, not as guarded custom
+workflow transitions.
 
-Runtime custom PHP is intentionally absent. Reproducible setup is handled by
-WP-CLI scripts that import plugin configuration and seed demo content.
+## Content Model
 
----
+Pods defines three private admin-facing post types:
 
-## Authentication Flow
+| Post type | Purpose |
+|-----------|---------|
+| `fachschaft` | Fachschaft master data for filtering and operational grouping |
+| `beschluss` | Main decision and approval record |
+| `zahlungsanweisung` | Payment instruction model for later workflow expansion |
 
-```
-User ──► WordPress login page
-           │
-           └─► "Login with SSO" ──► Keycloak (realm: fs-finance)
-                                       │
-                              OIDC Authorization Code Flow
-                                       │
-                              WordPress receives JWT / user info
-                                       │
-                              WordPress user and role assignment
-```
+Important `beschluss` fields:
 
----
+| Field | Type | Purpose |
+|-------|------|---------|
+| `fachschaft` | Text | Fachschaft slug/name |
+| `beschlussdatum` | Date | Date of the decision |
+| `betrag` | Currency | Amount in EUR |
+| `zweck_beschreibung` | Paragraph | Purpose and description |
+| `beschluss_status` | Select | Workflow status |
+| `belege` | File | Attachments |
+| `zahlungsanweisung_ref` | Text | Plain payment instruction reference |
 
-## Data Flow – Beschluss Lifecycle
+Important `zahlungsanweisung` fields:
 
-```
-fachschaft_finance creates Beschluss in wp-admin  [status: draft]
-        │
-        ▼
-  Submits for review                  [status: submitted]
-        │
-   ┌────┴─────────────────┐
-   ▼                       ▼
-asta_reviewer approves  requests correction
-[status: approved]      [status: correction_requested]
-        │                       │
-        │               fachschaft_finance corrects
-        │               [status: submitted again]
-        ▼
-  AStA finance filters/exports in wp-admin
-        │
-        ▼
-  [status: archived]
-```
+| Field | Type | Purpose |
+|-------|------|---------|
+| `fachschaft` | Text | Fachschaft slug/name |
+| `betrag` | Currency | Amount in EUR |
+| `verwendungszweck` | Paragraph | Payment purpose |
+| `zahlungs_status` | Select | Payment workflow status |
+| `belege` | File | Attachments |
 
----
+## Authentication
 
-## Local Development
+WordPress uses the OpenID Connect Generic plugin in automatic login mode.
+Unauthenticated users are redirected to Keycloak.
 
-See [README.md](../README.md) for setup, reset, and development commands.
+The browser-facing endpoints use the external Keycloak URL from `.env`, for
+example `http://localhost:8180`. Token, userinfo, and JWKS calls use the
+internal Docker URL `http://keycloak:8080`.
+
+The local setup links demo users by username/email and can create missing
+WordPress users after successful OIDC login.
+
+## Admin Workflow
+
+The main workflow happens in WordPress admin:
+
+1. A Fachschaft user creates or edits a `beschluss`.
+2. The user sets `beschluss_status` to `submitted`.
+3. A reviewer or AStA finance user updates the status to `approved`,
+   `rejected`, or `correction_requested`.
+4. AStA finance can filter records in the admin list and archive completed
+   items.
+
+This is a prototype boundary: WordPress roles provide coarse permissions, but
+the current implementation does not enforce row-level Fachschaft isolation or
+strict status transitions.
+
+## Verification
+
+`./scripts/verify-setup.sh` checks:
+
+- Required plugins are active.
+- Pods post types and fields exist.
+- WordPress roles and demo users exist.
+- The dashboard links to the admin workflow.
+- OIDC settings point to the configured realm.
+- Admin Columns config is stored.
+- Demo records are present once.
+- Keycloak OIDC discovery is reachable.
