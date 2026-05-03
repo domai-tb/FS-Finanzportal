@@ -55,6 +55,47 @@ foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'fachschaft_finance',
     }
 }
 
+function fs_finanzportal_verify_role_has_caps(string $role_name, array $caps): void
+{
+    $role = get_role($role_name);
+    foreach ($caps as $cap) {
+        if (!$role || !$role->has_cap($cap)) {
+            fs_finanzportal_verify_fail("Role {$role_name} is missing capability {$cap}.");
+        }
+    }
+}
+
+function fs_finanzportal_verify_role_lacks_caps(string $role_name, array $caps): void
+{
+    $role = get_role($role_name);
+    foreach ($caps as $cap) {
+        if ($role && $role->has_cap($cap)) {
+            fs_finanzportal_verify_fail("Role {$role_name} must not have capability {$cap}.");
+        }
+    }
+}
+
+foreach ([
+    'fachschaft' => 'fachschaft_record',
+    'beschluss' => 'beschluss_record',
+    'zahlungsanweisung' => 'zahlungsanweisung_record',
+] as $post_type => $capability_type) {
+    $object = get_post_type_object($post_type);
+    $plural = "{$capability_type}s";
+
+    if (!$object || ($object->cap->edit_posts ?? '') !== "edit_{$plural}") {
+        fs_finanzportal_verify_fail("Post type {$post_type} does not use custom capability type {$capability_type}.");
+    }
+}
+
+fs_finanzportal_verify_role_has_caps('portal_admin', ['edit_fachschaft_records', 'publish_fachschaft_records', 'edit_beschluss_records', 'edit_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_has_caps('asta_finance', ['edit_beschluss_records', 'edit_others_beschluss_records', 'publish_beschluss_records', 'edit_zahlungsanweisung_records', 'publish_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_has_caps('asta_reviewer', ['edit_beschluss_records', 'edit_others_beschluss_records', 'edit_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_has_caps('fachschaft_finance', ['edit_beschluss_records', 'publish_beschluss_records', 'edit_zahlungsanweisung_records', 'publish_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_lacks_caps('fachschaft_finance', ['edit_posts', 'publish_posts', 'edit_fachschaft_records', 'publish_fachschaft_records', 'edit_others_beschluss_records', 'edit_others_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_lacks_caps('fachschaft_reader', ['edit_posts', 'edit_fachschaft_records', 'edit_beschluss_records', 'edit_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_lacks_caps('auditor', ['edit_posts', 'edit_fachschaft_records', 'edit_beschluss_records', 'edit_zahlungsanweisung_records']);
+
 $dashboard = get_page_by_path('dashboard', OBJECT, 'page');
 if (!$dashboard || str_contains($dashboard->post_content, '[fs_finanzportal_dashboard]')) {
     fs_finanzportal_verify_fail('Dashboard page is missing or still depends on the custom portal shortcode.');
@@ -83,7 +124,7 @@ foreach (['informatik', 'philosophie', 'maschinenbau'] as $slug) {
     }
 }
 
-foreach (['demo-fachschaft', 'demo-philosophie', 'demo-asta', 'demo-reviewer', 'demo-auditor'] as $login) {
+foreach (['demo-fachschaft', 'demo-informatik-reader', 'demo-informatik-reader2', 'demo-maschinenbau-finance', 'demo-maschinenbau-reader', 'demo-maschinenbau-reader2', 'demo-philosophie-finance', 'demo-philosophie', 'demo-philosophie-reader2', 'demo-asta', 'demo-reviewer', 'demo-auditor'] as $login) {
     if (!get_user_by('login', $login)) {
         fs_finanzportal_verify_fail("Demo WordPress user {$login} is missing.");
     }

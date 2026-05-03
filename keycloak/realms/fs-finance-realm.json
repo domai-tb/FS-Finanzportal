@@ -61,7 +61,46 @@
         "profile",
         "email",
         "roles"
+      ],
+      "protocolMappers": [
+        {
+          "name": "fachschaften",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "fachschaften",
+            "claim.name": "fachschaften",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
       ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "fachschaft-informatik"
+    },
+    {
+      "name": "fachschaft-maschinenbau"
+    },
+    {
+      "name": "fachschaft-philosophie"
     }
   ],
   "users": [
@@ -71,6 +110,10 @@
       "email": "demo-fachschaft@example.com",
       "firstName": "Demo",
       "lastName": "Fachschaft",
+      "attributes": {
+        "fachschaften": ["informatik"]
+      },
+      "groups": ["fachschaft-informatik"],
       "credentials": [
         {
           "type": "password",
@@ -79,6 +122,158 @@
         }
       ],
       "realmRoles": ["fachschaft_finance"]
+    },
+    {
+      "username": "demo-informatik-reader",
+      "enabled": true,
+      "email": "demo-informatik-reader@example.com",
+      "firstName": "Demo",
+      "lastName": "InformatikReader",
+      "attributes": {
+        "fachschaften": ["informatik"]
+      },
+      "groups": ["fachschaft-informatik"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_reader"]
+    },
+    {
+      "username": "demo-informatik-reader2",
+      "enabled": true,
+      "email": "demo-informatik-reader2@example.com",
+      "firstName": "Demo",
+      "lastName": "InformatikReaderTwo",
+      "attributes": {
+        "fachschaften": ["informatik"]
+      },
+      "groups": ["fachschaft-informatik"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_reader"]
+    },
+    {
+      "username": "demo-maschinenbau-finance",
+      "enabled": true,
+      "email": "demo-maschinenbau-finance@example.com",
+      "firstName": "Demo",
+      "lastName": "MaschinenbauFinance",
+      "attributes": {
+        "fachschaften": ["maschinenbau"]
+      },
+      "groups": ["fachschaft-maschinenbau"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_finance"]
+    },
+    {
+      "username": "demo-maschinenbau-reader",
+      "enabled": true,
+      "email": "demo-maschinenbau-reader@example.com",
+      "firstName": "Demo",
+      "lastName": "MaschinenbauReader",
+      "attributes": {
+        "fachschaften": ["maschinenbau"]
+      },
+      "groups": ["fachschaft-maschinenbau"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_reader"]
+    },
+    {
+      "username": "demo-maschinenbau-reader2",
+      "enabled": true,
+      "email": "demo-maschinenbau-reader2@example.com",
+      "firstName": "Demo",
+      "lastName": "MaschinenbauReaderTwo",
+      "attributes": {
+        "fachschaften": ["maschinenbau"]
+      },
+      "groups": ["fachschaft-maschinenbau"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_reader"]
+    },
+    {
+      "username": "demo-philosophie-finance",
+      "enabled": true,
+      "email": "demo-philosophie-finance@example.com",
+      "firstName": "Demo",
+      "lastName": "PhilosophieFinance",
+      "attributes": {
+        "fachschaften": ["philosophie"]
+      },
+      "groups": ["fachschaft-philosophie"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_finance"]
+    },
+    {
+      "username": "demo-philosophie",
+      "enabled": true,
+      "email": "demo-philosophie@example.com",
+      "firstName": "Demo",
+      "lastName": "Philosophie",
+      "attributes": {
+        "fachschaften": ["philosophie"]
+      },
+      "groups": ["fachschaft-philosophie"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_reader"]
+    },
+    {
+      "username": "demo-philosophie-reader2",
+      "enabled": true,
+      "email": "demo-philosophie-reader2@example.com",
+      "firstName": "Demo",
+      "lastName": "PhilosophieReaderTwo",
+      "attributes": {
+        "fachschaften": ["philosophie"]
+      },
+      "groups": ["fachschaft-philosophie"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fachschaft_reader"]
     }
   ]
 }

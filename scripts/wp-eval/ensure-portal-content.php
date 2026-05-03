@@ -28,6 +28,57 @@ function fsfp_cli_add_caps(string $role, array $caps): void
     }
 }
 
+function fsfp_cli_sync_caps(string $role, array $caps): void
+{
+    $role_obj = get_role($role);
+    if (!$role_obj) {
+        WP_CLI::error("Role {$role} is missing.");
+    }
+
+    foreach (array_keys($role_obj->capabilities) as $cap) {
+        $role_obj->remove_cap($cap);
+    }
+
+    fsfp_cli_add_caps($role, $caps);
+}
+
+function fsfp_cli_post_type_caps(string $capability_type): array
+{
+    $plural = "{$capability_type}s";
+
+    return [
+        "read_{$capability_type}",
+        "edit_{$capability_type}",
+        "delete_{$capability_type}",
+        "read_private_{$plural}",
+        "edit_{$plural}",
+        "edit_others_{$plural}",
+        "edit_private_{$plural}",
+        "edit_published_{$plural}",
+        "publish_{$plural}",
+        "delete_{$plural}",
+        "delete_private_{$plural}",
+        "delete_published_{$plural}",
+        "delete_others_{$plural}",
+    ];
+}
+
+function fsfp_cli_own_post_type_caps(string $capability_type): array
+{
+    $plural = "{$capability_type}s";
+
+    return [
+        "read_{$capability_type}",
+        "edit_{$capability_type}",
+        "delete_{$capability_type}",
+        "edit_{$plural}",
+        "edit_published_{$plural}",
+        "publish_{$plural}",
+        "delete_{$plural}",
+        "delete_published_{$plural}",
+    ];
+}
+
 function fsfp_cli_upsert_post(string $post_type, string $slug, string $title, array $extra = []): int
 {
     $existing = get_page_by_path($slug, OBJECT, $post_type);
@@ -70,6 +121,8 @@ function fsfp_cli_upsert_user(string $login, string $email, string $role): int
         'user_email' => $email,
     ]);
 
+    delete_user_meta($user->ID, 'fsfp_fachschaften');
+
     return (int) $user->ID;
 }
 
@@ -80,17 +133,48 @@ fsfp_cli_role('fachschaft_finance', 'Fachschaft Finance');
 fsfp_cli_role('fachschaft_reader', 'Fachschaft Reader');
 fsfp_cli_role('auditor', 'Auditor');
 
-fsfp_cli_add_caps('portal_admin', ['read', 'upload_files', 'edit_posts', 'edit_others_posts', 'edit_published_posts', 'publish_posts', 'delete_posts', 'delete_others_posts', 'delete_published_posts', 'manage_options']);
-fsfp_cli_add_caps('asta_finance', ['read', 'upload_files', 'edit_posts', 'edit_others_posts', 'edit_published_posts', 'publish_posts', 'delete_posts', 'delete_others_posts', 'delete_published_posts']);
-fsfp_cli_add_caps('asta_reviewer', ['read', 'edit_posts', 'edit_others_posts', 'edit_published_posts']);
-fsfp_cli_add_caps('fachschaft_finance', ['read', 'upload_files', 'edit_posts', 'edit_published_posts', 'publish_posts', 'delete_posts', 'delete_published_posts']);
-fsfp_cli_add_caps('fachschaft_reader', ['read']);
-fsfp_cli_add_caps('auditor', ['read']);
+$fachschaft_caps = fsfp_cli_post_type_caps('fachschaft_record');
+$beschluss_caps = fsfp_cli_post_type_caps('beschluss_record');
+$zahlungsanweisung_caps = fsfp_cli_post_type_caps('zahlungsanweisung_record');
+$workflow_caps = array_merge($beschluss_caps, $zahlungsanweisung_caps);
+$administrator_caps = get_role('administrator') ? array_keys(get_role('administrator')->capabilities) : ['read', 'manage_options'];
+
+fsfp_cli_sync_caps('portal_admin', array_values(array_unique(array_merge(
+    $administrator_caps,
+    $fachschaft_caps,
+    $workflow_caps
+))));
+fsfp_cli_sync_caps('asta_finance', array_values(array_unique(array_merge(
+    ['read', 'upload_files'],
+    $workflow_caps
+))));
+fsfp_cli_sync_caps('asta_reviewer', [
+    'read',
+    'read_beschluss_record',
+    'read_private_beschluss_records',
+    'edit_beschluss_record',
+    'edit_beschluss_records',
+    'edit_others_beschluss_records',
+    'edit_published_beschluss_records',
+    'read_zahlungsanweisung_record',
+    'read_private_zahlungsanweisung_records',
+    'edit_zahlungsanweisung_record',
+    'edit_zahlungsanweisung_records',
+    'edit_others_zahlungsanweisung_records',
+    'edit_published_zahlungsanweisung_records',
+]);
+fsfp_cli_sync_caps('fachschaft_finance', array_values(array_unique(array_merge(
+    ['read', 'upload_files'],
+    fsfp_cli_own_post_type_caps('beschluss_record'),
+    fsfp_cli_own_post_type_caps('zahlungsanweisung_record')
+))));
+fsfp_cli_sync_caps('fachschaft_reader', ['read']);
+fsfp_cli_sync_caps('auditor', ['read']);
 
 $dashboard = get_page_by_path('dashboard', OBJECT, 'page');
 $dashboard_content = '<!-- wp:heading --><h2>Fachschaftsfinanzen</h2><!-- /wp:heading -->
 <!-- wp:paragraph --><p>Die Workflow-Verwaltung erfolgt in WordPress über die konfigurierten Inhaltstypen, Rollen, Pods-Felder und Listenansichten.</p><!-- /wp:paragraph -->
-<!-- wp:list --><ul><li><a href="/wp-admin/edit.php?post_type=beschluss">Beschlüsse verwalten</a></li><li><a href="/wp-admin/post-new.php?post_type=beschluss">Beschluss erstellen</a></li><li><a href="/wp-admin/edit.php?post_type=zahlungsanweisung">Zahlungsanweisungen verwalten</a></li><li><a href="/wp-admin/edit.php?post_type=fachschaft">Fachschaften verwalten</a></li></ul><!-- /wp:list -->';
+<!-- wp:list --><ul><li><a href="/wp-admin/edit.php?post_type=beschluss">Beschlüsse verwalten</a></li><li><a href="/wp-admin/post-new.php?post_type=beschluss">Beschluss erstellen</a></li><li><a href="/wp-admin/edit.php?post_type=zahlungsanweisung">Zahlungsanweisungen verwalten</a></li></ul><!-- /wp:list -->';
 if ($dashboard) {
     wp_update_post([
         'ID' => $dashboard->ID,
@@ -121,7 +205,14 @@ foreach ($fachschaften as $slug => $title) {
 
 $users = [
     ['demo-fachschaft', 'demo-fachschaft@example.com', 'fachschaft_finance'],
+    ['demo-informatik-reader', 'demo-informatik-reader@example.com', 'fachschaft_reader'],
+    ['demo-informatik-reader2', 'demo-informatik-reader2@example.com', 'fachschaft_reader'],
+    ['demo-maschinenbau-finance', 'demo-maschinenbau-finance@example.com', 'fachschaft_finance'],
+    ['demo-maschinenbau-reader', 'demo-maschinenbau-reader@example.com', 'fachschaft_reader'],
+    ['demo-maschinenbau-reader2', 'demo-maschinenbau-reader2@example.com', 'fachschaft_reader'],
+    ['demo-philosophie-finance', 'demo-philosophie-finance@example.com', 'fachschaft_finance'],
     ['demo-philosophie', 'demo-philosophie@example.com', 'fachschaft_reader'],
+    ['demo-philosophie-reader2', 'demo-philosophie-reader2@example.com', 'fachschaft_reader'],
     ['demo-asta', 'demo-asta@example.com', 'asta_finance'],
     ['demo-reviewer', 'demo-reviewer@example.com', 'asta_reviewer'],
     ['demo-auditor', 'demo-auditor@example.com', 'auditor'],

@@ -5,8 +5,8 @@ workflows. It helps Fachschaften capture Beschlüsse, Belege, and later
 Zahlungsanweisungen before AStA finance handles the final accounting.
 
 The project is intentionally low-code. WordPress runs with configured plugins,
-custom post types, roles, list views, and demo data. There is no custom
-WordPress runtime plugin.
+custom post types, roles, list views, and demo data. Fachschaft membership is
+modeled in Keycloak with roles, groups, and OIDC claims.
 
 ## What It Contains
 
@@ -19,6 +19,7 @@ WordPress runtime plugin.
 | Setup automation | Docker Compose and WP-CLI |
 | Content model | Pods package in `wordpress/config/pods/` |
 | Admin list view | Admin Columns config in `wordpress/config/admin-columns/` |
+| Fachschaft membership | Keycloak groups and OIDC claims |
 | Demo content | JSON data in `wordpress/config/demo/` |
 
 ## Quick Start
@@ -40,13 +41,20 @@ Then open:
 Credentials are read from `.env`. The default demo users all use the password
 `demo_secret`.
 
-| Login | Role |
-|-------|------|
-| `demo-fachschaft` | `fachschaft_finance` |
-| `demo-philosophie` | `fachschaft_reader` |
-| `demo-asta` | `asta_finance` |
-| `demo-reviewer` | `asta_reviewer` |
-| `demo-auditor` | `auditor` |
+| Login | Role | Fachschaft |
+|-------|------|------------|
+| `demo-fachschaft` | `fachschaft_finance` | `informatik` |
+| `demo-informatik-reader` | `fachschaft_reader` | `informatik` |
+| `demo-informatik-reader2` | `fachschaft_reader` | `informatik` |
+| `demo-maschinenbau-finance` | `fachschaft_finance` | `maschinenbau` |
+| `demo-maschinenbau-reader` | `fachschaft_reader` | `maschinenbau` |
+| `demo-maschinenbau-reader2` | `fachschaft_reader` | `maschinenbau` |
+| `demo-philosophie-finance` | `fachschaft_finance` | `philosophie` |
+| `demo-philosophie` | `fachschaft_reader` | `philosophie` |
+| `demo-philosophie-reader2` | `fachschaft_reader` | `philosophie` |
+| `demo-asta` | `asta_finance` | all |
+| `demo-reviewer` | `asta_reviewer` | all |
+| `demo-auditor` | `auditor` | all |
 
 ## Setup Flow
 
@@ -75,9 +83,10 @@ Pods field named `beschluss_status`.
 | `rejected` | Abgelehnt |
 | `archived` | Archiviert |
 
-Users change status by editing the record. Strict transition guards and
-per-Fachschaft row-level access are not enforced in this no-custom-code
-prototype.
+Users change status by editing the record. The user's Fachschaft is supplied by
+Keycloak groups and claims. WordPress record-level filtering by Fachschaft is
+not implemented without custom WordPress code or a suitable access-control
+plugin.
 
 ## Documentation
 

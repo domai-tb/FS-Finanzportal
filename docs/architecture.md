@@ -1,8 +1,9 @@
 # Architecture and Configuration
 
 FS-Finanzportal is a local, reproducible WordPress workflow prototype. The
-runtime behavior comes from WordPress plugins and imported configuration files,
-not from a custom plugin.
+runtime behavior comes from WordPress plugins and imported configuration files.
+Fachschaft membership is modeled in Keycloak and exposed to WordPress through
+OIDC claims.
 
 ## System Overview
 
@@ -117,6 +118,29 @@ internal Docker URL `http://keycloak:8080`.
 The local setup links demo users by username/email and can create missing
 WordPress users after successful OIDC login.
 
+## Fachschaft Membership
+
+Each Fachschaft user belongs to exactly one Fachschaft.
+
+Keycloak stores the membership as:
+
+- a group named `fachschaft-<slug>`, for example `fachschaft-informatik`
+- a user attribute named `fachschaften`
+- an OIDC claim named `fachschaften`
+- an OIDC claim named `groups`
+
+The Keycloak setup seeds one `fachschaft_finance` user and multiple
+`fachschaft_reader` users per Fachschaft. The WordPress OIDC client receives
+the user's realm roles and Fachschaft groups/attributes.
+
+AStA roles, auditors, portal admins, and WordPress administrators are global
+roles and are not assigned to a single Fachschaft.
+
+WordPress itself does not enforce per-record Fachschaft isolation in this
+no-custom-plugin setup. Enforcing `beschluss.fachschaft` or
+`zahlungsanweisung.fachschaft` against the OIDC claims requires a WordPress
+access-control plugin that supports claim-based rules, or custom code.
+
 ## Admin Workflow
 
 The main workflow happens in WordPress admin:
@@ -128,9 +152,9 @@ The main workflow happens in WordPress admin:
 4. AStA finance can filter records in the admin list and archive completed
    items.
 
-This is a prototype boundary: WordPress roles provide coarse permissions, but
-the current implementation does not enforce row-level Fachschaft isolation or
-strict status transitions.
+This is still a prototype boundary: Fachschaft membership is available through
+Keycloak claims, but WordPress does not enforce row-level Fachschaft isolation
+or strict status transitions.
 
 ## Verification
 
