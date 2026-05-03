@@ -103,6 +103,114 @@ function fsfp_cli_upsert_post(string $post_type, string $slug, string $title, ar
     return (int) $post_id;
 }
 
+function fsfp_cli_upsert_page(string $slug, string $title, string $content, int $parent_id = 0): int
+{
+    return fsfp_cli_upsert_post('page', $slug, $title, [
+        'post_content' => $content,
+        'post_parent' => $parent_id,
+    ]);
+}
+
+function fsfp_cli_ensure_menu(string $menu_name, array $items): void
+{
+    $menu = wp_get_nav_menu_object($menu_name);
+
+    if (!$menu) {
+        $menu_id = wp_create_nav_menu($menu_name);
+    } else {
+        $menu_id = (int) $menu->term_id;
+        foreach (wp_get_nav_menu_items($menu_id) ?: [] as $item) {
+            wp_delete_post($item->ID, true);
+        }
+    }
+
+    foreach ($items as $item) {
+        wp_update_nav_menu_item($menu_id, 0, [
+            'menu-item-title' => $item['title'],
+            'menu-item-url' => $item['url'],
+            'menu-item-status' => 'publish',
+        ]);
+    }
+
+    update_option('nav_menu_options', [
+        'auto_add' => [],
+    ]);
+
+    $locations = get_theme_mod('nav_menu_locations', []);
+    $registered_locations = get_registered_nav_menus();
+
+    foreach (array_keys($registered_locations) as $location) {
+        if (!isset($locations[$location])) {
+            $locations[$location] = $menu_id;
+            break;
+        }
+    }
+
+    set_theme_mod('nav_menu_locations', $locations);
+}
+
+function fsfp_cli_portal_nav_items(): string
+{
+    return '<!-- wp:navigation-link {"label":"Dashboard","url":"/dashboard/"} /--><!-- wp:navigation-link {"label":"Beschlüsse","url":"/dashboard/beschluesse/"} /--><!-- wp:navigation-link {"label":"Zahlungsanweisungen","url":"/dashboard/zahlungsanweisungen/"} /--><!-- wp:navigation-link {"label":"Logout","url":"/wp-login.php?action=logout"} /-->';
+}
+
+function fsfp_cli_portal_nav(): string
+{
+    return '<!-- wp:navigation -->' . fsfp_cli_portal_nav_items() . '<!-- /wp:navigation -->';
+}
+
+function fsfp_cli_ensure_block_navigation(string $title): void
+{
+    if (!post_type_exists('wp_navigation')) {
+        return;
+    }
+
+    $content = fsfp_cli_portal_nav_items();
+    $existing = get_page_by_path(sanitize_title($title), OBJECT, 'wp_navigation');
+
+    if ($existing) {
+        wp_update_post([
+            'ID' => $existing->ID,
+            'post_title' => $title,
+            'post_name' => sanitize_title($title),
+            'post_content' => $content,
+            'post_status' => 'publish',
+        ]);
+        return;
+    }
+
+    $navigation_posts = get_posts([
+        'post_type' => 'wp_navigation',
+        'post_status' => 'any',
+        'posts_per_page' => -1,
+        'fields' => 'ids',
+    ]);
+
+    if (!empty($navigation_posts)) {
+        wp_update_post([
+            'ID' => (int) $navigation_posts[0],
+            'post_title' => $title,
+            'post_name' => sanitize_title($title),
+            'post_content' => $content,
+            'post_status' => 'publish',
+        ]);
+
+        foreach (array_slice($navigation_posts, 1) as $post_id) {
+            wp_delete_post((int) $post_id, true);
+        }
+
+        return;
+    }
+
+    wp_insert_post([
+        'post_type' => 'wp_navigation',
+        'post_title' => $title,
+        'post_name' => sanitize_title($title),
+        'post_content' => $content,
+        'post_status' => 'publish',
+    ]);
+}
+
 function fsfp_cli_upsert_user(string $login, string $email, string $role): int
 {
     $user = get_user_by('login', $login);
@@ -132,6 +240,10 @@ fsfp_cli_role('asta_reviewer', 'AStA Reviewer');
 fsfp_cli_role('fachschaft_finance', 'Fachschaft Finance');
 fsfp_cli_role('fachschaft_reader', 'Fachschaft Reader');
 fsfp_cli_role('auditor', 'Auditor');
+fsfp_cli_role('fsr_member', 'FSR Member');
+fsfp_cli_role('fsr_treasurer', 'FSR Treasurer');
+fsfp_cli_role('fsr_board', 'FSR Board');
+fsfp_cli_role('asta_finance_admin', 'AStA Finance Admin');
 
 $fachschaft_caps = fsfp_cli_post_type_caps('fachschaft_record');
 $beschluss_caps = fsfp_cli_post_type_caps('beschluss_record');
@@ -170,28 +282,77 @@ fsfp_cli_sync_caps('fachschaft_finance', array_values(array_unique(array_merge(
 ))));
 fsfp_cli_sync_caps('fachschaft_reader', ['read']);
 fsfp_cli_sync_caps('auditor', ['read']);
+fsfp_cli_sync_caps('fsr_member', ['read']);
+fsfp_cli_sync_caps('fsr_treasurer', array_values(array_unique(array_merge(
+    ['read', 'upload_files'],
+    fsfp_cli_own_post_type_caps('beschluss_record'),
+    fsfp_cli_own_post_type_caps('zahlungsanweisung_record')
+))));
+fsfp_cli_sync_caps('fsr_board', [
+    'read',
+    'read_beschluss_record',
+    'read_private_beschluss_records',
+    'edit_beschluss_record',
+    'edit_beschluss_records',
+    'edit_published_beschluss_records',
+    'read_zahlungsanweisung_record',
+    'read_private_zahlungsanweisung_records',
+    'edit_zahlungsanweisung_record',
+    'edit_zahlungsanweisung_records',
+    'edit_published_zahlungsanweisung_records',
+]);
+fsfp_cli_sync_caps('asta_finance_admin', array_values(array_unique(array_merge(
+    ['read', 'upload_files'],
+    $workflow_caps
+))));
 
-$dashboard = get_page_by_path('dashboard', OBJECT, 'page');
-$dashboard_content = '<!-- wp:heading --><h2>Fachschaftsfinanzen</h2><!-- /wp:heading -->
-<!-- wp:paragraph --><p>Die Workflow-Verwaltung erfolgt in WordPress über die konfigurierten Inhaltstypen, Rollen, Pods-Felder und Listenansichten.</p><!-- /wp:paragraph -->
-<!-- wp:list --><ul><li><a href="/wp-admin/edit.php?post_type=beschluss">Beschlüsse verwalten</a></li><li><a href="/wp-admin/post-new.php?post_type=beschluss">Beschluss erstellen</a></li><li><a href="/wp-admin/edit.php?post_type=zahlungsanweisung">Zahlungsanweisungen verwalten</a></li></ul><!-- /wp:list -->';
-if ($dashboard) {
-    wp_update_post([
-        'ID' => $dashboard->ID,
-        'post_title' => 'Dashboard',
-        'post_name' => 'dashboard',
-        'post_content' => $dashboard_content,
-        'post_status' => 'publish',
-    ]);
-} else {
-    wp_insert_post([
-        'post_type' => 'page',
-        'post_title' => 'Dashboard',
-        'post_name' => 'dashboard',
-        'post_content' => $dashboard_content,
-        'post_status' => 'publish',
-    ]);
-}
+$portal_nav = fsfp_cli_portal_nav();
+$dashboard_content = $portal_nav . '<!-- wp:heading --><h2>Dashboard</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Willkommen im Fachschafts-Finanzportal.</p><!-- /wp:paragraph -->
+<!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Beschlüsse</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Beschlüsse vorbereiten, einreichen und den Status nachverfolgen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluesse/">Beschlüsse öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Zahlungsanweisungen</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Zahlungsanweisungen erfassen und mit Beschlüssen verknüpfen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisungen/">Zahlungsanweisungen öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --></div><!-- /wp:columns -->';
+$dashboard_id = fsfp_cli_upsert_page('dashboard', 'Dashboard', $dashboard_content);
+
+fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', $portal_nav . '<!-- wp:heading --><h2>Beschlüsse</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Frontend-Übersicht für Beschlüsse. Die Datenerfassung erfolgt in dieser Low-Code-Stufe über konfigurierte WordPress-Inhaltstypen; Backend-Zugriff für normale Benutzer ist gesperrt.</p><!-- /wp:paragraph -->
+<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluss-erstellen/">Beschluss erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
+fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', $portal_nav . '<!-- wp:heading --><h2>Beschluss erstellen</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Frontend-Einstieg für neue Beschlüsse. Ein Formular-Plugin kann hier später eingebunden werden, ohne WordPress-Backendzugriff für normale Benutzer zu öffnen.</p><!-- /wp:paragraph -->', $dashboard_id);
+fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', $portal_nav . '<!-- wp:heading --><h2>Zahlungsanweisungen</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Frontend-Übersicht für Zahlungsanweisungen.</p><!-- /wp:paragraph -->
+<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisung-erstellen/">Zahlungsanweisung erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
+fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', $portal_nav . '<!-- wp:heading --><h2>Zahlungsanweisung erstellen</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Frontend-Einstieg für neue Zahlungsanweisungen. Ein Formular-Plugin kann hier später eingebunden werden.</p><!-- /wp:paragraph -->', $dashboard_id);
+
+fsfp_cli_ensure_menu('Portal Navigation', [
+    ['title' => 'Dashboard', 'url' => home_url('/dashboard/')],
+    ['title' => 'Beschlüsse', 'url' => home_url('/dashboard/beschluesse/')],
+    ['title' => 'Zahlungsanweisungen', 'url' => home_url('/dashboard/zahlungsanweisungen/')],
+    ['title' => 'Logout', 'url' => home_url('/wp-login.php?action=logout')],
+]);
+fsfp_cli_ensure_block_navigation('Portal Navigation');
+
+update_option('rda_access_switch', 'manage_options');
+update_option('rda_access_cap', 'manage_options');
+update_option('rda_enable_profile', 0);
+update_option('rda_redirect_url', home_url('/dashboard/'));
+update_option('rda_login_message', '');
+update_option('hab_settings', [
+    'hab_disableforall' => 'no',
+    'hab_userRoles' => [
+        'asta_finance',
+        'asta_finance_admin',
+        'asta_reviewer',
+        'auditor',
+        'fachschaft_finance',
+        'fachschaft_reader',
+        'fsr_board',
+        'fsr_member',
+        'fsr_treasurer',
+        'subscriber',
+    ],
+    'hab_capabilities' => '',
+    'hab_disableforallGuests' => 'no',
+]);
 
 $fachschaften = [
     'informatik' => 'Fachschaft Informatik',

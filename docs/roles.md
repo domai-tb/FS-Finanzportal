@@ -29,6 +29,10 @@ status value.
 | `fachschaft_finance` | Fachschaft finance officer | Keycloak Fachschaft group | Can create, edit, publish, upload, and delete own Beschluss/Zahlungsanweisung records |
 | `fachschaft_reader` | Fachschaft member | Keycloak Fachschaft group | Basic read/login access only |
 | `auditor` | Auditor | All data | Read-only WordPress access |
+| `fsr_member` | Frontend FSR member | Frontend portal | Basic read/login access only |
+| `fsr_treasurer` | Frontend treasurer | Frontend portal | Can create and edit own workflow records |
+| `fsr_board` | Frontend board member | Frontend portal | Can read and edit workflow records |
+| `asta_finance_admin` | Frontend AStA finance admin | Frontend portal | Can manage workflow records |
 
 ## Capability Summary
 
@@ -49,6 +53,10 @@ Fachschaft scope is represented in Keycloak groups and claims. WordPress
 capabilities remain role-based unless a claim-aware access-control plugin is
 added. The WordPress capability model prevents Fachschaft users from managing
 the `fachschaft` master data post type.
+
+Normal portal roles are blocked from `wp-admin` and profile/settings pages by
+the Remove Dashboard Access plugin and are redirected to `/dashboard/`. The
+admin bar is hidden for those roles.
 
 ## Demo Users
 

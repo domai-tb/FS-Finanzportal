@@ -70,6 +70,8 @@ WordPress setup reproducible without becoming runtime code.
 | `members` | Role and capability management |
 | `content-control` | Page access restrictions |
 | `publishpress-statuses` | Installed for workflow status support |
+| `remove-dashboard-access-for-non-admins` | Blocks `wp-admin` for non-admin users |
+| `hide-admin-bar-based-on-user-roles` | Hides the admin bar for portal roles |
 
 The current status values are stored in Pods fields, not as guarded custom
 workflow transitions.
@@ -143,18 +145,42 @@ access-control plugin that supports claim-based rules, or custom code.
 
 ## Admin Workflow
 
-The main workflow happens in WordPress admin:
+Normal users use frontend portal pages:
 
-1. A Fachschaft user creates or edits a `beschluss`.
-2. The user sets `beschluss_status` to `submitted`.
-3. A reviewer or AStA finance user updates the status to `approved`,
-   `rejected`, or `correction_requested`.
-4. AStA finance can filter records in the admin list and archive completed
-   items.
+| Page | Path |
+|------|------|
+| Dashboard | `/dashboard/` |
+| Beschlüsse | `/dashboard/beschluesse/` |
+| Beschluss erstellen | `/dashboard/beschluss-erstellen/` |
+| Zahlungsanweisungen | `/dashboard/zahlungsanweisungen/` |
+| Zahlungsanweisung erstellen | `/dashboard/zahlungsanweisung-erstellen/` |
+
+The frontend pages include navigation for Dashboard, Beschlüsse,
+Zahlungsanweisungen, and Logout. They intentionally do not link to
+`wp-admin`, profile, or settings pages.
+
+The WordPress backend remains available for administrators. Normal logged-in
+users are blocked from `wp-admin`, including profile pages, and are redirected
+to `/dashboard/`.
 
 This is still a prototype boundary: Fachschaft membership is available through
 Keycloak claims, but WordPress does not enforce row-level Fachschaft isolation
 or strict status transitions.
+
+## Automated Plugin Settings
+
+The setup configures these plugin options through WP-CLI:
+
+| Plugin | Options |
+|--------|---------|
+| Remove Dashboard Access | `rda_access_switch=manage_options`, `rda_access_cap=manage_options`, `rda_enable_profile=0`, `rda_redirect_url=/dashboard/` |
+| Hide Admin Bar Based on User Roles | Hides the admin bar for `fachschaft_*`, `fsr_*`, `asta_*`, `auditor`, and `subscriber` roles |
+| OpenID Connect Generic | Keeps automatic Keycloak login and site privacy enabled |
+
+Content Control is installed and active. Its option structure is not automated
+because the current OIDC privacy setting already requires login for frontend
+pages, and the plugin's stored rule format is less stable than the documented
+settings UI.
 
 ## Verification
 
@@ -163,7 +189,9 @@ or strict status transitions.
 - Required plugins are active.
 - Pods post types and fields exist.
 - WordPress roles and demo users exist.
-- The dashboard links to the admin workflow.
+- Frontend portal pages exist.
+- Dashboard blocking and admin bar plugin options are configured.
+- The dashboard contains no `wp-admin` links.
 - OIDC settings point to the configured realm.
 - Admin Columns config is stored.
 - Demo records are present once.

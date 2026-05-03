@@ -49,7 +49,7 @@ foreach ($required_fields as $field_name) {
     }
 }
 
-foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'fachschaft_finance', 'fachschaft_reader', 'auditor'] as $role_name) {
+foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'fachschaft_finance', 'fachschaft_reader', 'auditor', 'fsr_member', 'fsr_treasurer', 'fsr_board', 'asta_finance_admin'] as $role_name) {
     if (!get_role($role_name)) {
         fs_finanzportal_verify_fail("WordPress role {$role_name} is missing.");
     }
@@ -95,14 +95,45 @@ fs_finanzportal_verify_role_has_caps('fachschaft_finance', ['edit_beschluss_reco
 fs_finanzportal_verify_role_lacks_caps('fachschaft_finance', ['edit_posts', 'publish_posts', 'edit_fachschaft_records', 'publish_fachschaft_records', 'edit_others_beschluss_records', 'edit_others_zahlungsanweisung_records']);
 fs_finanzportal_verify_role_lacks_caps('fachschaft_reader', ['edit_posts', 'edit_fachschaft_records', 'edit_beschluss_records', 'edit_zahlungsanweisung_records']);
 fs_finanzportal_verify_role_lacks_caps('auditor', ['edit_posts', 'edit_fachschaft_records', 'edit_beschluss_records', 'edit_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_has_caps('fsr_treasurer', ['edit_beschluss_records', 'publish_beschluss_records', 'edit_zahlungsanweisung_records', 'publish_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_lacks_caps('fsr_member', ['edit_posts', 'edit_fachschaft_records', 'edit_beschluss_records', 'edit_zahlungsanweisung_records']);
+fs_finanzportal_verify_role_has_caps('asta_finance_admin', ['edit_others_beschluss_records', 'publish_beschluss_records', 'edit_others_zahlungsanweisung_records']);
 
 $dashboard = get_page_by_path('dashboard', OBJECT, 'page');
 if (!$dashboard || str_contains($dashboard->post_content, '[fs_finanzportal_dashboard]')) {
     fs_finanzportal_verify_fail('Dashboard page is missing or still depends on the custom portal shortcode.');
 }
 
-if (!str_contains($dashboard->post_content, 'post_type=beschluss')) {
-    fs_finanzportal_verify_fail('Dashboard page does not link to the configured Beschluss admin workflow.');
+if (str_contains($dashboard->post_content, 'wp-admin')) {
+    fs_finanzportal_verify_fail('Dashboard page must not link to wp-admin.');
+}
+
+foreach ([
+    'dashboard/beschluesse',
+    'dashboard/beschluss-erstellen',
+    'dashboard/zahlungsanweisungen',
+    'dashboard/zahlungsanweisung-erstellen',
+] as $path) {
+    if (!get_page_by_path($path, OBJECT, 'page')) {
+        fs_finanzportal_verify_fail("Frontend portal page {$path} is missing.");
+    }
+}
+
+if (get_option('rda_access_switch') !== 'manage_options' || get_option('rda_access_cap') !== 'manage_options') {
+    fs_finanzportal_verify_fail('Remove Dashboard Access must restrict wp-admin to manage_options users.');
+}
+
+if ((int) get_option('rda_enable_profile') !== 0) {
+    fs_finanzportal_verify_fail('Remove Dashboard Access must block profile access for restricted users.');
+}
+
+if (untrailingslashit((string) get_option('rda_redirect_url')) !== untrailingslashit(home_url('/dashboard/'))) {
+    fs_finanzportal_verify_fail('Remove Dashboard Access redirect URL must point to /dashboard/.');
+}
+
+$hab_settings = get_option('hab_settings');
+if (!is_array($hab_settings) || !in_array('fachschaft_finance', $hab_settings['hab_userRoles'] ?? [], true) || !in_array('fsr_member', $hab_settings['hab_userRoles'] ?? [], true)) {
+    fs_finanzportal_verify_fail('Hide Admin Bar settings are missing normal portal roles.');
 }
 
 foreach (['informatik', 'philosophie', 'maschinenbau'] as $slug) {

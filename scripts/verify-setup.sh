@@ -28,6 +28,8 @@ $WP plugin is-active codepress-admin-columns
 $WP plugin is-active members
 $WP plugin is-active content-control
 $WP plugin is-active publishpress-statuses
+$WP plugin is-active remove-dashboard-access-for-non-admins
+$WP plugin is-active hide-admin-bar-based-on-user-roles
 
 echo "==> Verifying WordPress content model, roles, OIDC, and demo data..."
 $WP eval-file /scripts/wp-eval/verify-wordpress-config.php

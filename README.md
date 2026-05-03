@@ -20,6 +20,7 @@ modeled in Keycloak with roles, groups, and OIDC claims.
 | Content model | Pods package in `wordpress/config/pods/` |
 | Admin list view | Admin Columns config in `wordpress/config/admin-columns/` |
 | Fachschaft membership | Keycloak groups and OIDC claims |
+| Frontend access | Remove Dashboard Access and Hide Admin Bar plugins |
 | Demo content | JSON data in `wordpress/config/demo/` |
 
 ## Quick Start
@@ -35,8 +36,9 @@ Then open:
 |---------|-----|
 | WordPress | <http://localhost:8080> |
 | Keycloak | <http://localhost:8180> |
-| Beschluss admin | <http://localhost:8080/wp-admin/edit.php?post_type=beschluss> |
-| Dashboard links | <http://localhost:8080/dashboard/> |
+| Portal dashboard | <http://localhost:8080/dashboard/> |
+| Beschlüsse | <http://localhost:8080/dashboard/beschluesse/> |
+| Zahlungsanweisungen | <http://localhost:8080/dashboard/zahlungsanweisungen/> |
 
 Credentials are read from `.env`. The default demo users all use the password
 `demo_secret`.
@@ -83,10 +85,13 @@ Pods field named `beschluss_status`.
 | `rejected` | Abgelehnt |
 | `archived` | Archiviert |
 
-Users change status by editing the record. The user's Fachschaft is supplied by
-Keycloak groups and claims. WordPress record-level filtering by Fachschaft is
-not implemented without custom WordPress code or a suitable access-control
-plugin.
+Normal users work from the frontend portal. WordPress backend, profile, and
+settings pages are restricted to users with `manage_options`; blocked users are
+redirected to `/dashboard/`, and the admin bar is hidden for portal roles.
+
+The user's Fachschaft is supplied by Keycloak groups and claims. WordPress
+record-level filtering by Fachschaft is not implemented without custom
+WordPress code or a suitable access-control plugin.
 
 ## Documentation
 

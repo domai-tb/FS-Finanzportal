@@ -75,6 +75,8 @@ install_plugin codepress-admin-columns
 install_plugin members
 install_plugin content-control
 install_plugin publishpress-statuses
+install_plugin remove-dashboard-access-for-non-admins
+install_plugin hide-admin-bar-based-on-user-roles
 
 echo "==> Cleaning up default WordPress content..."
 $WP post delete 1 --force 2>/dev/null || true
