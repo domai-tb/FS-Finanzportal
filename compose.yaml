@@ -78,6 +78,8 @@ services:
       WP_ADMIN_USER: ${WP_ADMIN_USER}
       WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
       WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
+      HOME: /tmp
+      WP_CLI_CACHE_DIR: /tmp/wp-cli-cache
       WP_CONFIG_DIR: /wordpress/config
       KC_REALM: ${KC_REALM:-fs-finance}
       KC_WORDPRESS_CLIENT_ID: ${KC_WORDPRESS_CLIENT_ID:-wordpress}
