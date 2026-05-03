@@ -114,9 +114,18 @@ foreach ([
     'dashboard/zahlungsanweisungen',
     'dashboard/zahlungsanweisung-erstellen',
 ] as $path) {
-    if (!get_page_by_path($path, OBJECT, 'page')) {
+    $portal_page = get_page_by_path($path, OBJECT, 'page');
+    if (!$portal_page) {
         fs_finanzportal_verify_fail("Frontend portal page {$path} is missing.");
     }
+
+    if (str_contains($portal_page->post_content, '<!-- wp:navigation')) {
+        fs_finanzportal_verify_fail("Frontend portal page {$path} must not contain an inline navigation block.");
+    }
+}
+
+if (str_contains($dashboard->post_content, '<!-- wp:navigation')) {
+    fs_finanzportal_verify_fail('Dashboard page must not contain an inline navigation block.');
 }
 
 if (get_option('rda_access_switch') !== 'manage_options' || get_option('rda_access_cap') !== 'manage_options') {

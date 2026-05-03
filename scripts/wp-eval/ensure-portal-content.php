@@ -105,10 +105,39 @@ function fsfp_cli_upsert_post(string $post_type, string $slug, string $title, ar
 
 function fsfp_cli_upsert_page(string $slug, string $title, string $content, int $parent_id = 0): int
 {
-    return fsfp_cli_upsert_post('page', $slug, $title, [
+    $existing_path = $slug;
+
+    if ($parent_id > 0) {
+        $parent = get_post($parent_id);
+        if ($parent) {
+            $existing_path = trim($parent->post_name . '/' . $slug, '/');
+        }
+    }
+
+    $existing = get_page_by_path($existing_path, OBJECT, 'page');
+    if ($existing) {
+        $post_id = wp_update_post([
+            'ID' => $existing->ID,
+            'post_title' => $title,
+            'post_name' => $slug,
+            'post_content' => $content,
+            'post_parent' => $parent_id,
+            'post_status' => 'publish',
+        ], true);
+
+        if (is_wp_error($post_id)) {
+            WP_CLI::error($post_id->get_error_message());
+        }
+
+        return (int) $post_id;
+    }
+
+    $post_id = fsfp_cli_upsert_post('page', $slug, $title, [
         'post_content' => $content,
         'post_parent' => $parent_id,
     ]);
+
+    return $post_id;
 }
 
 function fsfp_cli_ensure_menu(string $menu_name, array $items): void
@@ -152,11 +181,6 @@ function fsfp_cli_ensure_menu(string $menu_name, array $items): void
 function fsfp_cli_portal_nav_items(): string
 {
     return '<!-- wp:navigation-link {"label":"Dashboard","url":"/dashboard/"} /--><!-- wp:navigation-link {"label":"Beschlüsse","url":"/dashboard/beschluesse/"} /--><!-- wp:navigation-link {"label":"Zahlungsanweisungen","url":"/dashboard/zahlungsanweisungen/"} /--><!-- wp:navigation-link {"label":"Logout","url":"/wp-login.php?action=logout"} /-->';
-}
-
-function fsfp_cli_portal_nav(): string
-{
-    return '<!-- wp:navigation -->' . fsfp_cli_portal_nav_items() . '<!-- /wp:navigation -->';
 }
 
 function fsfp_cli_ensure_block_navigation(string $title): void
@@ -306,21 +330,20 @@ fsfp_cli_sync_caps('asta_finance_admin', array_values(array_unique(array_merge(
     $workflow_caps
 ))));
 
-$portal_nav = fsfp_cli_portal_nav();
-$dashboard_content = $portal_nav . '<!-- wp:heading --><h2>Dashboard</h2><!-- /wp:heading -->
+$dashboard_content = '<!-- wp:heading --><h2>Dashboard</h2><!-- /wp:heading -->
 <!-- wp:paragraph --><p>Willkommen im Fachschafts-Finanzportal.</p><!-- /wp:paragraph -->
 <!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Beschlüsse</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Beschlüsse vorbereiten, einreichen und den Status nachverfolgen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluesse/">Beschlüsse öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Zahlungsanweisungen</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Zahlungsanweisungen erfassen und mit Beschlüssen verknüpfen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisungen/">Zahlungsanweisungen öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --></div><!-- /wp:columns -->';
 $dashboard_id = fsfp_cli_upsert_page('dashboard', 'Dashboard', $dashboard_content);
 
-fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', $portal_nav . '<!-- wp:heading --><h2>Beschlüsse</h2><!-- /wp:heading -->
+fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', '<!-- wp:heading --><h2>Beschlüsse</h2><!-- /wp:heading -->
 <!-- wp:paragraph --><p>Frontend-Übersicht für Beschlüsse. Die Datenerfassung erfolgt in dieser Low-Code-Stufe über konfigurierte WordPress-Inhaltstypen; Backend-Zugriff für normale Benutzer ist gesperrt.</p><!-- /wp:paragraph -->
 <!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluss-erstellen/">Beschluss erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
-fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', $portal_nav . '<!-- wp:heading --><h2>Beschluss erstellen</h2><!-- /wp:heading -->
+fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', '<!-- wp:heading --><h2>Beschluss erstellen</h2><!-- /wp:heading -->
 <!-- wp:paragraph --><p>Frontend-Einstieg für neue Beschlüsse. Ein Formular-Plugin kann hier später eingebunden werden, ohne WordPress-Backendzugriff für normale Benutzer zu öffnen.</p><!-- /wp:paragraph -->', $dashboard_id);
-fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', $portal_nav . '<!-- wp:heading --><h2>Zahlungsanweisungen</h2><!-- /wp:heading -->
+fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', '<!-- wp:heading --><h2>Zahlungsanweisungen</h2><!-- /wp:heading -->
 <!-- wp:paragraph --><p>Frontend-Übersicht für Zahlungsanweisungen.</p><!-- /wp:paragraph -->
 <!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisung-erstellen/">Zahlungsanweisung erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
-fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', $portal_nav . '<!-- wp:heading --><h2>Zahlungsanweisung erstellen</h2><!-- /wp:heading -->
+fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', '<!-- wp:heading --><h2>Zahlungsanweisung erstellen</h2><!-- /wp:heading -->
 <!-- wp:paragraph --><p>Frontend-Einstieg für neue Zahlungsanweisungen. Ein Formular-Plugin kann hier später eingebunden werden.</p><!-- /wp:paragraph -->', $dashboard_id);
 
 fsfp_cli_ensure_menu('Portal Navigation', [
