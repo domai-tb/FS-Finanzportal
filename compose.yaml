@@ -46,6 +46,7 @@ services:
       WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
     volumes:
       - wp_data:/var/www/html
+      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/wp-login.php"]
       interval: 15s

@@ -330,16 +330,40 @@ fsfp_cli_sync_caps('asta_finance_admin', array_values(array_unique(array_merge(
     $workflow_caps
 ))));
 
+// Dashboard pages linking to portal pages
 $dashboard_content = '<!-- wp:paragraph --><p>Willkommen im Fachschafts-Finanzportal.</p><!-- /wp:paragraph -->
 <!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Beschlüsse</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Beschlüsse vorbereiten, einreichen und den Status nachverfolgen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluesse/">Beschlüsse öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Zahlungsanweisungen</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Zahlungsanweisungen erfassen und mit Beschlüssen verknüpfen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisungen/">Zahlungsanweisungen öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --></div><!-- /wp:columns -->';
 $dashboard_id = fsfp_cli_upsert_page('dashboard', 'Dashboard', $dashboard_content);
 
-fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', '<!-- wp:paragraph --><p>Frontend-Übersicht für Beschlüsse. Die Datenerfassung erfolgt in dieser Low-Code-Stufe über konfigurierte WordPress-Inhaltstypen; Backend-Zugriff für normale Benutzer ist gesperrt.</p><!-- /wp:paragraph -->
-<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluss-erstellen/">Beschluss erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
-fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', '<!-- wp:paragraph --><p>Frontend-Einstieg für neue Beschlüsse. Ein Formular-Plugin kann hier später eingebunden werden, ohne WordPress-Backendzugriff für normale Benutzer zu öffnen.</p><!-- /wp:paragraph -->', $dashboard_id);
-fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', '<!-- wp:paragraph --><p>Frontend-Übersicht für Zahlungsanweisungen.</p><!-- /wp:paragraph -->
-<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisung-erstellen/">Zahlungsanweisung erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
-fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', '<!-- wp:paragraph --><p>Frontend-Einstieg für neue Zahlungsanweisungen. Ein Formular-Plugin kann hier später eingebunden werden.</p><!-- /wp:paragraph -->', $dashboard_id);
+// Beschluesse list page
+fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', '<!-- wp:paragraph --><p>Übersicht Ihrer Beschlüsse. Nutzen Sie die Schaltfläche unten, um einen neuen Beschluss zu erstellen.</p><!-- /wp:paragraph -->
+<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluss-erstellen/">Beschluss erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->
+<!-- wp:html -->
+[pods_table post_type="beschluss"]
+<!-- /wp:html -->', $dashboard_id);
+
+// Beschluss form creation page
+fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', '<!-- wp:paragraph --><p>Füllen Sie das Formular aus, um einen neuen Beschluss zu erstellen.</p><!-- /wp:paragraph -->
+<!-- wp:html -->
+[pods name="beschluss" form="true" redirect="/dashboard/beschluesse/?created=1" create_post_status="publish"]
+<!-- /wp:html -->', $dashboard_id);
+
+// Zahlungsanweisungen list page
+fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', '<!-- wp:paragraph --><p>Übersicht Ihrer Zahlungsanweisungen. Nutzen Sie die Schaltfläche unten, um eine neue Zahlungsanweisung zu erstellen.</p><!-- /wp:paragraph -->
+<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisung-erstellen/">Zahlungsanweisung erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->
+<!-- wp:html -->
+[pods_table post_type="zahlungsanweisung"]
+<!-- /wp:html -->', $dashboard_id);
+
+// Zahlungsanweisung form creation page
+fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', '<!-- wp:paragraph --><p>Füllen Sie das Formular aus, um eine neue Zahlungsanweisung zu erstellen.</p><!-- /wp:paragraph -->
+<!-- wp:html -->
+[pods name="zahlungsanweisung" form="true" redirect="/dashboard/zahlungsanweisungen/?created=1" create_post_status="publish"]
+<!-- /wp:html -->', $dashboard_id);
+fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', '<!-- wp:paragraph --><p>Füllen Sie das Formular aus, um eine neue Zahlungsanweisung zu erstellen.</p><!-- /wp:paragraph -->
+<!-- wp:html -->
+[pods name="zahlungsanweisung" form="true" redirect="/dashboard/zahlungsanweisungen/?created=1"]
+<!-- /wp:html -->', $dashboard_id);
 
 fsfp_cli_ensure_menu('Portal Navigation', [
     ['title' => 'Dashboard', 'url' => home_url('/dashboard/')],
@@ -420,5 +444,8 @@ foreach ($items as $item) {
     update_post_meta($post_id, 'beschluss_status', $item['status'] ?? 'draft');
 
 }
+
+// Flush rewrite rules to activate post type archives
+flush_rewrite_rules();
 
 WP_CLI::success('Portal content configured.');
