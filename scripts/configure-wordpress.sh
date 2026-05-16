@@ -39,14 +39,11 @@ OIDC_SETTINGS="$(
 )"
 $WP option update openid_connect_generic_settings "$OIDC_SETTINGS" --format=json >/dev/null
 
-echo "==> Importing Pods content model..."
-$WP eval-file /scripts/wp-eval/import-pods-package.php "${WP_CONFIG_DIR}/pods/beschluss-pods-package.json"
+echo "==> Importing Fachschaft-scoped Pods content model..."
+$WP eval-file /scripts/wp-eval/import-scoped-pods.php "${WP_CONFIG_DIR}/fachschaften.json"
 $WP rewrite flush --hard >/dev/null
 
 echo "==> Ensuring roles, admin dashboard page, users, Fachschaften, and demo Beschluesse..."
 $WP eval-file /scripts/wp-eval/ensure-portal-content.php
-
-echo "==> Importing Admin Columns configuration when supported..."
-$WP eval-file /scripts/wp-eval/import-admin-columns.php "${WP_CONFIG_DIR}/admin-columns/beschluss-columns.json"
 
 echo "==> WordPress portal configuration complete."

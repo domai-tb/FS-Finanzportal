@@ -22,14 +22,24 @@ KC_PORT="${KC_PORT:-8180}"
 WP="docker compose --profile setup run --rm --entrypoint wp wp-cli --allow-root --path=/var/www/html"
 
 echo "==> Verifying required WordPress plugins..."
-$WP plugin is-active pods
-$WP plugin is-active daggerhart-openid-connect-generic
-$WP plugin is-active codepress-admin-columns
-$WP plugin is-active members
-$WP plugin is-active content-control
-$WP plugin is-active publishpress-statuses
-$WP plugin is-active remove-dashboard-access-for-non-admins
-$WP plugin is-active hide-admin-bar-based-on-user-roles
+REQUIRED_PLUGINS=(
+  pods
+  daggerhart-openid-connect-generic
+  members
+  content-control
+  publishpress-statuses
+  remove-dashboard-access-for-non-admins
+  hide-admin-bar-based-on-user-roles
+)
+
+ACTIVE_PLUGINS="$($WP plugin list --status=active --field=name)"
+
+for plugin in "${REQUIRED_PLUGINS[@]}"; do
+  if ! grep -Fxq "$plugin" <<<"$ACTIVE_PLUGINS"; then
+    echo "ERROR: Required plugin '$plugin' is not active." >&2
+    exit 1
+  fi
+done
 
 echo "==> Verifying WordPress content model, roles, OIDC, and demo data..."
 $WP eval-file /scripts/wp-eval/verify-wordpress-config.php

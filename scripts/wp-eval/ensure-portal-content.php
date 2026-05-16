@@ -1,8 +1,59 @@
 <?php
 /**
- * Idempotently creates roles, an admin entry page, Fachschaften, demo users,
- * and demo data for the configured-plugin prototype.
+ * Idempotently creates roles, portal pages, demo users, Fachschaften, and demo
+ * data for the configured-plugin prototype.
+ *
+ * This script runs through WP-CLI during setup only. No project-specific PHP is
+ * loaded by WordPress during normal requests.
  */
+
+function fsfp_cli_config_path(string $relative_path): string
+{
+    return rtrim((string) getenv('WP_CONFIG_DIR'), '/') . '/' . ltrim($relative_path, '/');
+}
+
+function fsfp_cli_load_fachschaften(): array
+{
+    $file = fsfp_cli_config_path('fachschaften.json');
+    $config = json_decode(file_get_contents($file), true);
+
+    if (!is_array($config) || empty($config['fachschaften']) || !is_array($config['fachschaften'])) {
+        WP_CLI::error('Invalid Fachschaften JSON.');
+    }
+
+    return $config['fachschaften'];
+}
+
+function fsfp_cli_workflow_types(string $slug): array
+{
+    return [
+        'beschluss' => "b_{$slug}",
+        'zahlung' => "za_{$slug}",
+    ];
+}
+
+function fsfp_cli_capability_type(string $post_type): string
+{
+    return "{$post_type}_record";
+}
+
+function fsfp_cli_global_access_roles(): array
+{
+    return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer', 'auditor'];
+}
+
+function fsfp_cli_global_edit_roles(): array
+{
+    return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer'];
+}
+
+function fsfp_cli_fachschaft_access_roles(string $slug): array
+{
+    return array_merge([
+        "fs_{$slug}_reader",
+        "fs_{$slug}_finance",
+    ], fsfp_cli_global_access_roles());
+}
 
 function fsfp_cli_role(string $role, string $label, string $clone = ''): void
 {
@@ -39,7 +90,7 @@ function fsfp_cli_sync_caps(string $role, array $caps): void
         $role_obj->remove_cap($cap);
     }
 
-    fsfp_cli_add_caps($role, $caps);
+    fsfp_cli_add_caps($role, array_values(array_unique($caps)));
 }
 
 function fsfp_cli_post_type_caps(string $capability_type): array
@@ -63,20 +114,34 @@ function fsfp_cli_post_type_caps(string $capability_type): array
     ];
 }
 
-function fsfp_cli_own_post_type_caps(string $capability_type): array
+function fsfp_cli_read_caps(string $capability_type): array
 {
     $plural = "{$capability_type}s";
 
     return [
+        'read',
         "read_{$capability_type}",
+        "read_private_{$plural}",
+    ];
+}
+
+function fsfp_cli_edit_caps(string $capability_type): array
+{
+    $plural = "{$capability_type}s";
+
+    return array_merge(fsfp_cli_read_caps($capability_type), [
         "edit_{$capability_type}",
-        "delete_{$capability_type}",
         "edit_{$plural}",
+        "edit_others_{$plural}",
+        "edit_private_{$plural}",
         "edit_published_{$plural}",
         "publish_{$plural}",
-        "delete_{$plural}",
-        "delete_published_{$plural}",
-    ];
+    ]);
+}
+
+function fsfp_cli_admin_edit_access_cap(): string
+{
+    return 'fsfp_use_wp_admin';
 }
 
 function fsfp_cli_upsert_post(string $post_type, string $slug, string $title, array $extra = []): int
@@ -132,12 +197,37 @@ function fsfp_cli_upsert_page(string $slug, string $title, string $content, int 
         return (int) $post_id;
     }
 
-    $post_id = fsfp_cli_upsert_post('page', $slug, $title, [
+    return fsfp_cli_upsert_post('page', $slug, $title, [
         'post_content' => $content,
         'post_parent' => $parent_id,
     ]);
+}
 
-    return $post_id;
+function fsfp_cli_delete_child_pages(int $parent_id): void
+{
+    $children = get_posts([
+        'post_type' => 'page',
+        'post_status' => 'any',
+        'post_parent' => $parent_id,
+        'fields' => 'ids',
+        'posts_per_page' => -1,
+    ]);
+
+    foreach ($children as $child_id) {
+        fsfp_cli_delete_child_pages((int) $child_id);
+        wp_delete_post((int) $child_id, true);
+    }
+}
+
+function fsfp_cli_restrict_page_to_roles(int $post_id, array $roles): void
+{
+    delete_post_meta($post_id, '_members_access_role');
+
+    foreach (array_values(array_unique($roles)) as $role) {
+        add_post_meta($post_id, '_members_access_role', $role, false);
+    }
+
+    update_post_meta($post_id, '_members_access_error', 'Sie haben keinen Zugriff auf diese Fachschaftsseite.');
 }
 
 function fsfp_cli_ensure_menu(string $menu_name, array $items): void
@@ -178,18 +268,21 @@ function fsfp_cli_ensure_menu(string $menu_name, array $items): void
     set_theme_mod('nav_menu_locations', $locations);
 }
 
-function fsfp_cli_portal_nav_items(): string
-{
-    return '<!-- wp:navigation-link {"label":"Dashboard","url":"/dashboard/"} /--><!-- wp:navigation-link {"label":"Beschlüsse","url":"/dashboard/beschluesse/"} /--><!-- wp:navigation-link {"label":"Zahlungsanweisungen","url":"/dashboard/zahlungsanweisungen/"} /--><!-- wp:navigation-link {"label":"Logout","url":"/wp-login.php?action=logout"} /-->';
-}
-
-function fsfp_cli_ensure_block_navigation(string $title): void
+function fsfp_cli_ensure_block_navigation(string $title, array $items): void
 {
     if (!post_type_exists('wp_navigation')) {
         return;
     }
 
-    $content = fsfp_cli_portal_nav_items();
+    $content = '';
+    foreach ($items as $item) {
+        $content .= sprintf(
+            '<!-- wp:navigation-link {"label":"%s","url":"%s"} /-->',
+            esc_html($item['title']),
+            esc_url($item['url'])
+        );
+    }
+
     $existing = get_page_by_path(sanitize_title($title), OBJECT, 'wp_navigation');
 
     if ($existing) {
@@ -235,7 +328,7 @@ function fsfp_cli_ensure_block_navigation(string $title): void
     ]);
 }
 
-function fsfp_cli_upsert_user(string $login, string $email, string $role): int
+function fsfp_cli_upsert_user(string $login, string $email, string $role, string $fachschaft = ''): int
 {
     $user = get_user_by('login', $login);
     if (!$user) {
@@ -253,188 +346,316 @@ function fsfp_cli_upsert_user(string $login, string $email, string $role): int
         'user_email' => $email,
     ]);
 
-    delete_user_meta($user->ID, 'fsfp_fachschaften');
+    if ($fachschaft !== '') {
+        update_user_meta($user->ID, 'fsfp_fachschaft', $fachschaft);
+    } else {
+        delete_user_meta($user->ID, 'fsfp_fachschaft');
+    }
 
     return (int) $user->ID;
 }
 
+function fsfp_cli_list_shortcode(string $post_type, string $kind, bool $include_edit_link = false): string
+{
+    $date_markup = $kind === 'beschluss' ? '<dt>Datum</dt><dd>{@beschlussdatum}</dd>' : '';
+    $status_field = $kind === 'beschluss' ? 'beschluss_status' : 'zahlungs_status';
+    $description_field = $kind === 'beschluss' ? 'zweck_beschreibung' : 'verwendungszweck';
+    $reference_field = $kind === 'beschluss' ? 'zahlungsanweisung_ref' : 'beschluss_ref';
+    $edit_slug = $kind === 'beschluss' ? 'beschluss-bearbeiten' : 'zahlungsanweisung-bearbeiten';
+    $edit_button = '';
+    if ($include_edit_link) {
+        $edit_button = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/{@fachschaft}/' . $edit_slug . '/?id={@ID}">Bearbeiten</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
+    }
+
+    return '<!-- wp:html -->' . "\n"
+        . '[pods name="' . esc_attr($post_type) . '" limit="10" search="1" pagination="1" pagination_type="paginate" shortcodes="1"]' . "\n"
+        . '<article class="fsfp-entry"><h3>{@post_title}</h3><dl>'
+        . '<dt>Interne ID</dt><dd>{@ID}</dd>'
+        . '<dt>Status</dt><dd>{@' . $status_field . '}</dd>'
+        . $date_markup
+        . '<dt>Betrag</dt><dd>{@betrag}</dd>'
+        . '<dt>Beschreibung</dt><dd>{@' . $description_field . '}</dd>'
+        . '<dt>Referenz</dt><dd>{@' . $reference_field . '}</dd>'
+        . '<dt>Notizen</dt><dd>{@notes}</dd>'
+        . '</dl>' . $edit_button . '</article>' . "\n"
+        . '[/pods]' . "\n"
+        . '<!-- /wp:html -->';
+}
+
+function fsfp_cli_list_intro(string $kind): string
+{
+    if ($kind === 'beschluss') {
+        return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Die Liste ist durchsuchbar und seitenweise aufgebaut. Nutze die Suche, um Beschlüsse nach Titel oder Beschreibung einzugrenzen. Der Status zeigt, wo ein Vorgang im Workflow steht.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>Workflow-Status:</strong> Entwurf, Eingereicht, Rückfrage, Genehmigt, Abgelehnt, Archiviert.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+    }
+
+    return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Die Liste ist durchsuchbar und seitenweise aufgebaut. Nutze die Suche, um Zahlungsanweisungen nach Titel oder Verwendungszweck einzugrenzen. Der Status zeigt den Bearbeitungsstand.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>Workflow-Status:</strong> Entwurf, Eingereicht, Genehmigt, Abgelehnt, Archiviert.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+}
+
+function fsfp_cli_members_access_block(array $roles, string $content): string
+{
+    return '<!-- wp:html -->' . "\n"
+        . '[members_access role="' . esc_attr(implode(',', array_values(array_unique($roles)))) . '"]' . "\n"
+        . $content . "\n"
+        . '[/members_access]' . "\n"
+        . '<!-- /wp:html -->';
+}
+
+function fsfp_cli_dashboard_card(string $title, string $url, string $button_label): string
+{
+    return '<!-- wp:group --><div class="wp-block-group"><!-- wp:heading {"level":3} --><h3>' . esc_html($title) . '</h3><!-- /wp:heading --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . esc_url($url) . '">' . esc_html($button_label) . '</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:group -->';
+}
+
+function fsfp_cli_form_shortcode(string $post_type, string $fields, string $redirect): string
+{
+    return '<!-- wp:html -->' . "\n"
+        . '[pods name="' . esc_attr($post_type) . '" form="true" fields="' . esc_attr($fields) . '" thank_you="' . esc_url($redirect) . '" label="Speichern"]' . "\n"
+        . '<!-- /wp:html -->';
+}
+
+function fsfp_cli_edit_form_page(string $post_type, string $fields, string $list_url): string
+{
+    return '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Bearbeiten-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph --><div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Bearbeiten-Link in der Liste.</p><!-- /wp:paragraph --></div><div class="fsfp-edit-page__form" hidden>'
+        . '[pods name="' . esc_attr($post_type) . '" form="true" slug="{@get.id}" fields="' . esc_attr($fields) . '" thank_you="' . esc_url($list_url) . '" label="Änderungen speichern"]'
+        . '</div><script>(function(){var params=new URLSearchParams(window.location.search);var id=params.get("id");var form=document.querySelector(".fsfp-edit-page__form");var notice=document.querySelector(".fsfp-edit-page__notice");if(!form||!notice){return;}if(id&&id.length){form.hidden=false;notice.hidden=true;}else{form.hidden=true;notice.hidden=false;}})();</script></div><!-- /wp:group -->';
+}
+
+function fsfp_cli_workflow_action_buttons(string $create_url, string $edit_url, array $roles): string
+{
+    return fsfp_cli_members_access_block(
+        $roles,
+        '<!-- wp:buttons --><div class="wp-block-buttons">'
+        . '<!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . esc_url($create_url) . '">Erstellen</a></div><!-- /wp:button -->'
+        . '<!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . esc_url($edit_url) . '">Bearbeiten</a></div><!-- /wp:button -->'
+        . '</div><!-- /wp:buttons -->'
+    );
+}
+
+$fachschaften = fsfp_cli_load_fachschaften();
+$workflow_caps = [];
+$read_workflow_caps = [];
+$edit_workflow_caps = [];
+
 fsfp_cli_role('portal_admin', 'Portal Admin', 'administrator');
 fsfp_cli_role('asta_finance', 'AStA Finance');
 fsfp_cli_role('asta_reviewer', 'AStA Reviewer');
-fsfp_cli_role('fachschaft_finance', 'Fachschaft Finance');
-fsfp_cli_role('fachschaft_reader', 'Fachschaft Reader');
 fsfp_cli_role('auditor', 'Auditor');
-fsfp_cli_role('fsr_member', 'FSR Member');
-fsfp_cli_role('fsr_treasurer', 'FSR Treasurer');
-fsfp_cli_role('fsr_board', 'FSR Board');
-fsfp_cli_role('asta_finance_admin', 'AStA Finance Admin');
+fsfp_cli_role('fs_portal_empty', 'Portal ohne Fachschaft');
+
+foreach ($fachschaften as $fachschaft) {
+    $slug = sanitize_key($fachschaft['slug']);
+    $short = $fachschaft['short_label'] ?? ucfirst($slug);
+    fsfp_cli_role("fs_{$slug}_reader", "FS {$short} Reader");
+    fsfp_cli_role("fs_{$slug}_finance", "FS {$short} Finance");
+
+    foreach (fsfp_cli_workflow_types($slug) as $post_type) {
+        $capability_type = fsfp_cli_capability_type($post_type);
+        $workflow_caps = array_merge($workflow_caps, fsfp_cli_post_type_caps($capability_type));
+        $read_workflow_caps = array_merge($read_workflow_caps, fsfp_cli_read_caps($capability_type));
+        $edit_workflow_caps = array_merge($edit_workflow_caps, fsfp_cli_edit_caps($capability_type));
+    }
+}
 
 $fachschaft_caps = fsfp_cli_post_type_caps('fachschaft_record');
-$beschluss_caps = fsfp_cli_post_type_caps('beschluss_record');
-$zahlungsanweisung_caps = fsfp_cli_post_type_caps('zahlungsanweisung_record');
-$workflow_caps = array_merge($beschluss_caps, $zahlungsanweisung_caps);
 $administrator_caps = get_role('administrator') ? array_keys(get_role('administrator')->capabilities) : ['read', 'manage_options'];
+fsfp_cli_add_caps('administrator', [fsfp_cli_admin_edit_access_cap()]);
 
-fsfp_cli_sync_caps('portal_admin', array_values(array_unique(array_merge(
-    $administrator_caps,
-    $fachschaft_caps,
-    $workflow_caps
-))));
-fsfp_cli_sync_caps('asta_finance', array_values(array_unique(array_merge(
-    ['read', 'upload_files'],
-    $workflow_caps
-))));
-fsfp_cli_sync_caps('asta_reviewer', [
-    'read',
-    'read_beschluss_record',
-    'read_private_beschluss_records',
-    'edit_beschluss_record',
-    'edit_beschluss_records',
-    'edit_others_beschluss_records',
-    'edit_published_beschluss_records',
-    'read_zahlungsanweisung_record',
-    'read_private_zahlungsanweisung_records',
-    'edit_zahlungsanweisung_record',
-    'edit_zahlungsanweisung_records',
-    'edit_others_zahlungsanweisung_records',
-    'edit_published_zahlungsanweisung_records',
-]);
-fsfp_cli_sync_caps('fachschaft_finance', array_values(array_unique(array_merge(
-    ['read', 'upload_files'],
-    fsfp_cli_own_post_type_caps('beschluss_record'),
-    fsfp_cli_own_post_type_caps('zahlungsanweisung_record')
-))));
-fsfp_cli_sync_caps('fachschaft_reader', ['read']);
-fsfp_cli_sync_caps('auditor', ['read']);
-fsfp_cli_sync_caps('fsr_member', ['read']);
-fsfp_cli_sync_caps('fsr_treasurer', array_values(array_unique(array_merge(
-    ['read', 'upload_files'],
-    fsfp_cli_own_post_type_caps('beschluss_record'),
-    fsfp_cli_own_post_type_caps('zahlungsanweisung_record')
-))));
-fsfp_cli_sync_caps('fsr_board', [
-    'read',
-    'read_beschluss_record',
-    'read_private_beschluss_records',
-    'edit_beschluss_record',
-    'edit_beschluss_records',
-    'edit_published_beschluss_records',
-    'read_zahlungsanweisung_record',
-    'read_private_zahlungsanweisung_records',
-    'edit_zahlungsanweisung_record',
-    'edit_zahlungsanweisung_records',
-    'edit_published_zahlungsanweisung_records',
-]);
-fsfp_cli_sync_caps('asta_finance_admin', array_values(array_unique(array_merge(
-    ['read', 'upload_files'],
-    $workflow_caps
-))));
+fsfp_cli_sync_caps('portal_admin', array_merge($administrator_caps, [fsfp_cli_admin_edit_access_cap()], $fachschaft_caps, $workflow_caps));
+fsfp_cli_sync_caps('asta_finance', array_merge(['read', 'upload_files', fsfp_cli_admin_edit_access_cap()], $edit_workflow_caps));
+fsfp_cli_sync_caps('asta_reviewer', array_merge(['read', fsfp_cli_admin_edit_access_cap()], $edit_workflow_caps));
+fsfp_cli_sync_caps('auditor', array_merge(['read'], $read_workflow_caps));
+fsfp_cli_sync_caps('fs_portal_empty', ['read']);
 
-// Dashboard pages linking to portal pages
-$dashboard_content = '<!-- wp:paragraph --><p>Willkommen im Fachschafts-Finanzportal.</p><!-- /wp:paragraph -->
-<!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Beschlüsse</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Beschlüsse vorbereiten, einreichen und den Status nachverfolgen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluesse/">Beschlüsse öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --><!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":3} --><h3>Zahlungsanweisungen</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Zahlungsanweisungen erfassen und mit Beschlüssen verknüpfen.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisungen/">Zahlungsanweisungen öffnen</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:column --></div><!-- /wp:columns -->';
-$dashboard_id = fsfp_cli_upsert_page('dashboard', 'Dashboard', $dashboard_content);
+foreach ($fachschaften as $fachschaft) {
+    $slug = sanitize_key($fachschaft['slug']);
+    $reader_caps = ['read'];
+    $finance_caps = ['read', 'upload_files'];
 
-// Beschluesse list page
-fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', '<!-- wp:paragraph --><p>Übersicht Ihrer Beschlüsse. Nutzen Sie die Schaltfläche unten, um einen neuen Beschluss zu erstellen.</p><!-- /wp:paragraph -->
-<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/beschluss-erstellen/">Beschluss erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->
-<!-- wp:html -->
-[pods_table post_type="beschluss"]
-<!-- /wp:html -->', $dashboard_id);
+    foreach (fsfp_cli_workflow_types($slug) as $post_type) {
+        $capability_type = fsfp_cli_capability_type($post_type);
+        $reader_caps = array_merge($reader_caps, fsfp_cli_read_caps($capability_type));
+        $finance_caps = array_merge($finance_caps, fsfp_cli_edit_caps($capability_type));
+    }
 
-// Beschluss form creation page
-fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', '<!-- wp:paragraph --><p>Füllen Sie das Formular aus, um einen neuen Beschluss zu erstellen.</p><!-- /wp:paragraph -->
-<!-- wp:html -->
-[pods name="beschluss" form="true" redirect="/dashboard/beschluesse/?created=1" create_post_status="publish"]
-<!-- /wp:html -->', $dashboard_id);
+    fsfp_cli_sync_caps("fs_{$slug}_reader", $reader_caps);
+    fsfp_cli_sync_caps("fs_{$slug}_finance", array_merge($finance_caps, [fsfp_cli_admin_edit_access_cap()]));
+}
 
-// Zahlungsanweisungen list page
-fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', '<!-- wp:paragraph --><p>Übersicht Ihrer Zahlungsanweisungen. Nutzen Sie die Schaltfläche unten, um eine neue Zahlungsanweisung zu erstellen.</p><!-- /wp:paragraph -->
-<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/zahlungsanweisung-erstellen/">Zahlungsanweisung erstellen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->
-<!-- wp:html -->
-[pods_table post_type="zahlungsanweisung"]
-<!-- /wp:html -->', $dashboard_id);
+$members_settings = get_option('members_settings', []);
+if (!is_array($members_settings)) {
+    $members_settings = [];
+}
+$members_settings['content_permissions'] = 1;
+$members_settings['hide_posts_rest_api'] = 1;
+$members_settings['content_permissions_error'] = 'Sie haben keinen Zugriff auf diese Fachschaftsseite.';
+update_option('members_settings', $members_settings);
 
-// Zahlungsanweisung form creation page
-fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', '<!-- wp:paragraph --><p>Füllen Sie das Formular aus, um eine neue Zahlungsanweisung zu erstellen.</p><!-- /wp:paragraph -->
-<!-- wp:html -->
-[pods name="zahlungsanweisung" form="true" redirect="/dashboard/zahlungsanweisungen/?created=1" create_post_status="publish"]
-<!-- /wp:html -->', $dashboard_id);
-fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', '<!-- wp:paragraph --><p>Füllen Sie das Formular aus, um eine neue Zahlungsanweisung zu erstellen.</p><!-- /wp:paragraph -->
-<!-- wp:html -->
-[pods name="zahlungsanweisung" form="true" redirect="/dashboard/zahlungsanweisungen/?created=1"]
-<!-- /wp:html -->', $dashboard_id);
-
-fsfp_cli_ensure_menu('Portal Navigation', [
+$dashboard_blocks = '';
+$menu_items = [
     ['title' => 'Dashboard', 'url' => home_url('/dashboard/')],
-    ['title' => 'Beschlüsse', 'url' => home_url('/dashboard/beschluesse/')],
-    ['title' => 'Zahlungsanweisungen', 'url' => home_url('/dashboard/zahlungsanweisungen/')],
     ['title' => 'Logout', 'url' => home_url('/wp-login.php?action=logout')],
-]);
-fsfp_cli_ensure_block_navigation('Portal Navigation');
+];
 
-update_option('rda_access_switch', 'manage_options');
-update_option('rda_access_cap', 'manage_options');
+foreach ($fachschaften as $fachschaft) {
+    $slug = sanitize_key($fachschaft['slug']);
+    $label = $fachschaft['label'];
+    $dashboard_blocks .= fsfp_cli_members_access_block(
+        fsfp_cli_fachschaft_access_roles($slug),
+        fsfp_cli_dashboard_card($label, home_url("/dashboard/{$slug}/"), 'Öffnen')
+    );
+}
+
+$dashboard_blocks .= fsfp_cli_members_access_block(
+    fsfp_cli_global_access_roles(),
+    fsfp_cli_dashboard_card('AStA / Gesamtübersicht', home_url('/dashboard/beschluesse/'), 'Alle Beschlüsse öffnen')
+);
+$dashboard_blocks .= fsfp_cli_members_access_block(
+    ['fs_portal_empty'],
+    '<!-- wp:paragraph --><p>Ihr Konto ist keiner Fachschaft zugeordnet. Bitte wenden Sie sich an die Portal-Administration.</p><!-- /wp:paragraph -->'
+);
+
+$dashboard_content = '<!-- wp:heading --><h2>Fachschafts-Finanzportal</h2><!-- /wp:heading -->
+<!-- wp:paragraph --><p>Beschlüsse, Belege und Zahlungsanweisungen werden nach Fachschaft getrennt verwaltet.</p><!-- /wp:paragraph -->
+'
+    . $dashboard_blocks;
+$dashboard_id = fsfp_cli_upsert_page('dashboard', 'Dashboard', $dashboard_content);
+fsfp_cli_delete_child_pages($dashboard_id);
+
+update_option('show_on_front', 'page');
+update_option('page_on_front', $dashboard_id);
+update_option('page_for_posts', 0);
+
+$global_beschluesse = '<!-- wp:heading --><h2>Alle Beschlüsse</h2><!-- /wp:heading -->';
+$global_zahlungen = '<!-- wp:heading --><h2>Alle Zahlungsanweisungen</h2><!-- /wp:heading -->';
+
+foreach ($fachschaften as $fachschaft) {
+    $slug = sanitize_key($fachschaft['slug']);
+    $label = $fachschaft['label'];
+    $types = fsfp_cli_workflow_types($slug);
+    $fachschaft_view_roles = fsfp_cli_fachschaft_access_roles($slug);
+    $edit_roles = ["fs_{$slug}_finance", ...fsfp_cli_global_edit_roles()];
+    $view_only_roles = array_values(array_diff($fachschaft_view_roles, $edit_roles));
+
+    $fachschaft_id = fsfp_cli_upsert_page($slug, $label, '<!-- wp:heading --><h2>' . esc_html($label) . '</h2><!-- /wp:heading -->
+<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/' . esc_attr($slug) . '/beschluesse/">Beschlüsse</a></div><!-- /wp:button --><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/' . esc_attr($slug) . '/zahlungsanweisungen/">Zahlungsanweisungen</a></div><!-- /wp:button --></div><!-- /wp:buttons -->', $dashboard_id);
+    fsfp_cli_restrict_page_to_roles($fachschaft_id, fsfp_cli_fachschaft_access_roles($slug));
+
+    $beschluss_list = '<!-- wp:heading --><h2>Beschlüsse</h2><!-- /wp:heading -->'
+        . fsfp_cli_list_intro('beschluss')
+        . fsfp_cli_workflow_action_buttons(
+            home_url("/dashboard/{$slug}/beschluss-erstellen/"),
+            home_url("/dashboard/{$slug}/beschluss-bearbeiten/"),
+            $edit_roles
+        )
+        . fsfp_cli_members_access_block($edit_roles, fsfp_cli_list_shortcode($types['beschluss'], 'beschluss', true))
+        . fsfp_cli_members_access_block($view_only_roles, fsfp_cli_list_shortcode($types['beschluss'], 'beschluss'));
+    $beschluss_list_id = fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', $beschluss_list, $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($beschluss_list_id, $fachschaft_view_roles);
+
+    $beschluss_form_fields = 'post_title,beschlussdatum,betrag,zweck_beschreibung,beschluss_status,belege,zahlungsanweisung_ref,notes';
+    $beschluss_create_id = fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', fsfp_cli_form_shortcode($types['beschluss'], $beschluss_form_fields, home_url("/dashboard/{$slug}/beschluesse/?created=1")), $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($beschluss_create_id, $edit_roles);
+    $beschluss_edit_id = fsfp_cli_upsert_page('beschluss-bearbeiten', 'Beschluss bearbeiten', fsfp_cli_edit_form_page($types['beschluss'], $beschluss_form_fields, home_url("/dashboard/{$slug}/beschluesse/")), $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($beschluss_edit_id, $edit_roles);
+
+    $zahlung_list = '<!-- wp:heading --><h2>Zahlungsanweisungen</h2><!-- /wp:heading -->'
+        . fsfp_cli_list_intro('zahlung')
+        . fsfp_cli_workflow_action_buttons(
+            home_url("/dashboard/{$slug}/zahlungsanweisung-erstellen/"),
+            home_url("/dashboard/{$slug}/zahlungsanweisung-bearbeiten/"),
+            $edit_roles
+        )
+        . fsfp_cli_members_access_block($edit_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', true))
+        . fsfp_cli_members_access_block($view_only_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung'));
+    $zahlung_list_id = fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', $zahlung_list, $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($zahlung_list_id, $fachschaft_view_roles);
+
+    $zahlung_form_fields = 'post_title,betrag,verwendungszweck,zahlungs_status,belege,beschluss_ref,notes';
+    $zahlung_create_id = fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', fsfp_cli_form_shortcode($types['zahlung'], $zahlung_form_fields, home_url("/dashboard/{$slug}/zahlungsanweisungen/?created=1")), $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($zahlung_create_id, $edit_roles);
+    $zahlung_edit_id = fsfp_cli_upsert_page('zahlungsanweisung-bearbeiten', 'Zahlungsanweisung bearbeiten', fsfp_cli_edit_form_page($types['zahlung'], $zahlung_form_fields, home_url("/dashboard/{$slug}/zahlungsanweisungen/")), $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($zahlung_edit_id, $edit_roles);
+
+    $global_beschluesse .= '<!-- wp:heading {"level":3} --><h3>' . esc_html($label) . '</h3><!-- /wp:heading -->' . fsfp_cli_list_intro('beschluss') . fsfp_cli_list_shortcode($types['beschluss'], 'beschluss');
+    $global_zahlungen .= '<!-- wp:heading {"level":3} --><h3>' . esc_html($label) . '</h3><!-- /wp:heading -->' . fsfp_cli_list_intro('zahlung') . fsfp_cli_list_shortcode($types['zahlung'], 'zahlung');
+}
+
+$global_beschluesse_id = fsfp_cli_upsert_page('beschluesse', 'Alle Beschlüsse', $global_beschluesse, $dashboard_id);
+fsfp_cli_restrict_page_to_roles($global_beschluesse_id, fsfp_cli_global_access_roles());
+$global_zahlungen_id = fsfp_cli_upsert_page('zahlungsanweisungen', 'Alle Zahlungsanweisungen', $global_zahlungen, $dashboard_id);
+fsfp_cli_restrict_page_to_roles($global_zahlungen_id, fsfp_cli_global_access_roles());
+
+fsfp_cli_ensure_menu('Portal Navigation', $menu_items);
+fsfp_cli_ensure_block_navigation('Portal Navigation', $menu_items);
+
+update_option('rda_access_switch', 'capability');
+update_option('rda_access_cap', fsfp_cli_admin_edit_access_cap());
 update_option('rda_enable_profile', 0);
 update_option('rda_redirect_url', home_url('/dashboard/'));
 update_option('rda_login_message', '');
+
+$hidden_admin_bar_roles = [
+    'asta_finance',
+    'asta_reviewer',
+    'auditor',
+    'fs_portal_empty',
+    'subscriber',
+];
+foreach ($fachschaften as $fachschaft) {
+    $slug = sanitize_key($fachschaft['slug']);
+    $hidden_admin_bar_roles[] = "fs_{$slug}_reader";
+    $hidden_admin_bar_roles[] = "fs_{$slug}_finance";
+}
+
 update_option('hab_settings', [
     'hab_disableforall' => 'no',
-    'hab_userRoles' => [
-        'asta_finance',
-        'asta_finance_admin',
-        'asta_reviewer',
-        'auditor',
-        'fachschaft_finance',
-        'fachschaft_reader',
-        'fsr_board',
-        'fsr_member',
-        'fsr_treasurer',
-        'subscriber',
-    ],
+    'hab_userRoles' => array_values(array_unique($hidden_admin_bar_roles)),
     'hab_capabilities' => '',
     'hab_disableforallGuests' => 'no',
 ]);
 
-$fachschaften = [
-    'informatik' => 'Fachschaft Informatik',
-    'philosophie' => 'Fachschaft Philosophie',
-    'maschinenbau' => 'Fachschaft Maschinenbau',
-];
+delete_option('fs_finanzportal_aam_policy_manifest');
 
-foreach ($fachschaften as $slug => $title) {
-    fsfp_cli_upsert_post('fachschaft', $slug, $title);
+foreach ($fachschaften as $fachschaft) {
+    fsfp_cli_upsert_post('fachschaft', sanitize_key($fachschaft['slug']), $fachschaft['label']);
 }
 
 $users = [
-    ['demo-fachschaft', 'demo-fachschaft@example.com', 'fachschaft_finance'],
-    ['demo-informatik-reader', 'demo-informatik-reader@example.com', 'fachschaft_reader'],
-    ['demo-informatik-reader2', 'demo-informatik-reader2@example.com', 'fachschaft_reader'],
-    ['demo-maschinenbau-finance', 'demo-maschinenbau-finance@example.com', 'fachschaft_finance'],
-    ['demo-maschinenbau-reader', 'demo-maschinenbau-reader@example.com', 'fachschaft_reader'],
-    ['demo-maschinenbau-reader2', 'demo-maschinenbau-reader2@example.com', 'fachschaft_reader'],
-    ['demo-philosophie-finance', 'demo-philosophie-finance@example.com', 'fachschaft_finance'],
-    ['demo-philosophie', 'demo-philosophie@example.com', 'fachschaft_reader'],
-    ['demo-philosophie-reader2', 'demo-philosophie-reader2@example.com', 'fachschaft_reader'],
-    ['demo-asta', 'demo-asta@example.com', 'asta_finance'],
-    ['demo-reviewer', 'demo-reviewer@example.com', 'asta_reviewer'],
-    ['demo-auditor', 'demo-auditor@example.com', 'auditor'],
+    ['demo-fachschaft', 'demo-fachschaft@example.com', 'fs_informatik_finance', 'informatik'],
+    ['demo-informatik-reader', 'demo-informatik-reader@example.com', 'fs_informatik_reader', 'informatik'],
+    ['demo-informatik-reader2', 'demo-informatik-reader2@example.com', 'fs_informatik_reader', 'informatik'],
+    ['demo-maschinenbau-finance', 'demo-maschinenbau-finance@example.com', 'fs_maschinenbau_finance', 'maschinenbau'],
+    ['demo-maschinenbau-reader', 'demo-maschinenbau-reader@example.com', 'fs_maschinenbau_reader', 'maschinenbau'],
+    ['demo-maschinenbau-reader2', 'demo-maschinenbau-reader2@example.com', 'fs_maschinenbau_reader', 'maschinenbau'],
+    ['demo-philosophie-finance', 'demo-philosophie-finance@example.com', 'fs_philosophie_finance', 'philosophie'],
+    ['demo-philosophie', 'demo-philosophie@example.com', 'fs_philosophie_reader', 'philosophie'],
+    ['demo-philosophie-reader2', 'demo-philosophie-reader2@example.com', 'fs_philosophie_reader', 'philosophie'],
+    ['demo-asta', 'demo-asta@example.com', 'asta_finance', ''],
+    ['demo-reviewer', 'demo-reviewer@example.com', 'asta_reviewer', ''],
+    ['demo-auditor', 'demo-auditor@example.com', 'auditor', ''],
+    ['demo-unassigned', 'demo-unassigned@example.com', 'fs_portal_empty', ''],
 ];
 
 foreach ($users as $user) {
-    fsfp_cli_upsert_user($user[0], $user[1], $user[2]);
+    fsfp_cli_upsert_user($user[0], $user[1], $user[2], $user[3]);
 }
 
-$file = getenv('WP_CONFIG_DIR') . '/demo/beschluesse.json';
-$items = json_decode(file_get_contents($file), true);
+$demo_file = fsfp_cli_config_path('demo/beschluesse.json');
+$items = json_decode(file_get_contents($demo_file), true);
 if (!is_array($items)) {
     WP_CLI::error('Invalid demo Beschluesse JSON.');
 }
 
 foreach ($items as $item) {
+    $fachschaft = sanitize_key($item['fachschaft'] ?? '');
+    if ($fachschaft === '') {
+        WP_CLI::error('Demo Beschluss is missing Fachschaft.');
+    }
+
+    $post_type = fsfp_cli_workflow_types($fachschaft)['beschluss'];
     $author = get_user_by('login', $item['author'] ?? 'demo-fachschaft');
-    $post_id = fsfp_cli_upsert_post('beschluss', $item['slug'], $item['title'], [
+    $post_id = fsfp_cli_upsert_post($post_type, $item['slug'], $item['title'], [
         'post_author' => $author ? $author->ID : 1,
+        'post_status' => 'publish',
     ]);
 
     foreach (['fachschaft', 'beschlussdatum', 'betrag', 'zweck_beschreibung', 'zahlungsanweisung_ref', 'notes'] as $field) {
@@ -442,10 +663,8 @@ foreach ($items as $item) {
     }
 
     update_post_meta($post_id, 'beschluss_status', $item['status'] ?? 'draft');
-
 }
 
-// Flush rewrite rules to activate post type archives
 flush_rewrite_rules();
 
 WP_CLI::success('Portal content configured.');

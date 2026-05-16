@@ -1,0 +1,19 @@
+{
+  "fachschaften": [
+    {
+      "slug": "informatik",
+      "label": "Fachschaft Informatik",
+      "short_label": "Informatik"
+    },
+    {
+      "slug": "maschinenbau",
+      "label": "Fachschaft Maschinenbau",
+      "short_label": "Maschinenbau"
+    },
+    {
+      "slug": "philosophie",
+      "label": "Fachschaft Philosophie",
+      "short_label": "Philosophie"
+    }
+  ]
+}

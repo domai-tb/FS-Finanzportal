@@ -25,16 +25,36 @@
         "description": "AStA reviewer – reviews and approves Beschlüsse"
       },
       {
-        "name": "fachschaft_finance",
-        "description": "Fachschaft finance officer – creates Beschlüsse and Zahlungsanweisungen"
-      },
-      {
-        "name": "fachschaft_reader",
-        "description": "Fachschaft member – read-only access to own Fachschaft data"
-      },
-      {
         "name": "auditor",
         "description": "External or internal auditor – read-only access to all data"
+      },
+      {
+        "name": "fs_portal_empty",
+        "description": "Authenticated user without Fachschaft workflow access"
+      },
+      {
+        "name": "fs_informatik_finance",
+        "description": "Fachschaft Informatik finance officer"
+      },
+      {
+        "name": "fs_informatik_reader",
+        "description": "Fachschaft Informatik read-only member"
+      },
+      {
+        "name": "fs_maschinenbau_finance",
+        "description": "Fachschaft Maschinenbau finance officer"
+      },
+      {
+        "name": "fs_maschinenbau_reader",
+        "description": "Fachschaft Maschinenbau read-only member"
+      },
+      {
+        "name": "fs_philosophie_finance",
+        "description": "Fachschaft Philosophie finance officer"
+      },
+      {
+        "name": "fs_philosophie_reader",
+        "description": "Fachschaft Philosophie read-only member"
       }
     ]
   },
@@ -121,7 +141,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_finance"]
+      "realmRoles": ["fs_informatik_finance"]
     },
     {
       "username": "demo-informatik-reader",
@@ -140,7 +160,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_reader"]
+      "realmRoles": ["fs_informatik_reader"]
     },
     {
       "username": "demo-informatik-reader2",
@@ -159,7 +179,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_reader"]
+      "realmRoles": ["fs_informatik_reader"]
     },
     {
       "username": "demo-maschinenbau-finance",
@@ -178,7 +198,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_finance"]
+      "realmRoles": ["fs_maschinenbau_finance"]
     },
     {
       "username": "demo-maschinenbau-reader",
@@ -197,7 +217,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_reader"]
+      "realmRoles": ["fs_maschinenbau_reader"]
     },
     {
       "username": "demo-maschinenbau-reader2",
@@ -216,7 +236,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_reader"]
+      "realmRoles": ["fs_maschinenbau_reader"]
     },
     {
       "username": "demo-philosophie-finance",
@@ -235,7 +255,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_finance"]
+      "realmRoles": ["fs_philosophie_finance"]
     },
     {
       "username": "demo-philosophie",
@@ -254,7 +274,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_reader"]
+      "realmRoles": ["fs_philosophie_reader"]
     },
     {
       "username": "demo-philosophie-reader2",
@@ -273,7 +293,79 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["fachschaft_reader"]
+      "realmRoles": ["fs_philosophie_reader"]
+    },
+    {
+      "username": "demo-asta",
+      "enabled": true,
+      "email": "demo-asta@example.com",
+      "firstName": "Demo",
+      "lastName": "AStA",
+      "attributes": {
+        "fachschaften": []
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["asta_finance"]
+    },
+    {
+      "username": "demo-reviewer",
+      "enabled": true,
+      "email": "demo-reviewer@example.com",
+      "firstName": "Demo",
+      "lastName": "Reviewer",
+      "attributes": {
+        "fachschaften": []
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["asta_reviewer"]
+    },
+    {
+      "username": "demo-auditor",
+      "enabled": true,
+      "email": "demo-auditor@example.com",
+      "firstName": "Demo",
+      "lastName": "Auditor",
+      "attributes": {
+        "fachschaften": []
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["auditor"]
+    },
+    {
+      "username": "demo-unassigned",
+      "enabled": true,
+      "email": "demo-unassigned@example.com",
+      "firstName": "Demo",
+      "lastName": "Unassigned",
+      "attributes": {
+        "fachschaften": []
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo_secret",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fs_portal_empty"]
     }
   ]
 }

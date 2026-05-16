@@ -60,6 +60,10 @@ $WP option update start_of_week 1
 $WP option update default_comment_status closed
 $WP rewrite structure '/%postname%/' --hard
 
+if ! $WP config has PODS_SHORTCODE_ALLOW_EVALUATE_TAGS >/dev/null 2>&1; then
+  $WP config set PODS_SHORTCODE_ALLOW_EVALUATE_TAGS true --raw --type=constant >/dev/null
+fi
+
 echo "==> Installing German language pack..."
 if ! $WP language core install de_DE; then
   echo "    WARN: Could not install de_DE language pack (check network)." >&2
@@ -71,12 +75,15 @@ fi
 echo "==> Installing and activating WordPress plugins..."
 install_plugin daggerhart-openid-connect-generic
 install_plugin pods
-install_plugin codepress-admin-columns
 install_plugin members
 install_plugin content-control
 install_plugin publishpress-statuses
 install_plugin remove-dashboard-access-for-non-admins
 install_plugin hide-admin-bar-based-on-user-roles
+
+if $WP plugin is-installed advanced-access-manager 2>/dev/null; then
+  $WP plugin deactivate advanced-access-manager || true
+fi
 
 echo "==> Cleaning up default WordPress content..."
 $WP post delete 1 --force 2>/dev/null || true
