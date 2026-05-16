@@ -168,6 +168,32 @@ function fsfp_cli_upsert_post(string $post_type, string $slug, string $title, ar
     return (int) $post_id;
 }
 
+function fsfp_cli_publish_existing_workflow_posts(array $fachschaften): void
+{
+    foreach ($fachschaften as $fachschaft) {
+        $slug = sanitize_key($fachschaft['slug']);
+        foreach (fsfp_cli_workflow_types($slug) as $post_type) {
+            $post_ids = get_posts([
+                'post_type' => $post_type,
+                'post_status' => ['draft', 'pending'],
+                'fields' => 'ids',
+                'posts_per_page' => -1,
+            ]);
+
+            foreach ($post_ids as $post_id) {
+                $updated = wp_update_post([
+                    'ID' => (int) $post_id,
+                    'post_status' => 'publish',
+                ], true);
+
+                if (is_wp_error($updated)) {
+                    WP_CLI::error($updated->get_error_message());
+                }
+            }
+        }
+    }
+}
+
 function fsfp_cli_upsert_page(string $slug, string $title, string $content, int $parent_id = 0): int
 {
     $existing_path = $slug;
@@ -201,6 +227,38 @@ function fsfp_cli_upsert_page(string $slug, string $title, string $content, int 
         'post_content' => $content,
         'post_parent' => $parent_id,
     ]);
+}
+
+function fsfp_cli_upsert_pods_template(string $slug, string $title, string $content): int
+{
+    if (!function_exists('pods_api')) {
+        WP_CLI::error('Pods API is unavailable while saving templates.');
+    }
+
+    $api = pods_api();
+    $existing = $api->load_template(['slug' => $slug]);
+    if (!$existing) {
+        $existing = $api->load_template(['title' => $title]);
+    }
+
+    $params = [
+        'name' => $title,
+        'code' => $content,
+        'status' => 'publish',
+    ];
+    if (!empty($existing['id'])) {
+        $params['id'] = $existing['id'];
+    }
+
+    $template_id = $api->save_template($params);
+    if (is_wp_error($template_id)) {
+        WP_CLI::error($template_id->get_error_message());
+    }
+    if (!$template_id) {
+        WP_CLI::error("Could not save Pods template {$slug}.");
+    }
+
+    return (int) $template_id;
 }
 
 function fsfp_cli_delete_child_pages(int $parent_id): void
@@ -355,21 +413,75 @@ function fsfp_cli_upsert_user(string $login, string $email, string $role, string
     return (int) $user->ID;
 }
 
-function fsfp_cli_list_shortcode(string $post_type, string $kind, bool $include_edit_link = false): string
+function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachschaft_slug, bool $include_edit_link = false, bool $hide_drafts = false): string
+{
+    $date_th = $kind === 'beschluss' ? '<th>Datum</th>' : '';
+    $date_td = $kind === 'beschluss' ? '<td>{@beschlussdatum}</td>' : '';
+    $status_field = $kind === 'beschluss' ? 'beschluss_status' : 'zahlungs_status';
+    $detail_slug = $kind === 'beschluss' ? 'beschluss-details' : 'zahlungsanweisung-details';
+    $edit_slug = $kind === 'beschluss' ? 'beschluss-bearbeiten' : 'zahlungsanweisung-bearbeiten';
+    $base_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/';
+
+    $actions = '<a href="' . $base_url . $detail_slug . '/?id={@ID}">Details</a>';
+    if ($include_edit_link) {
+        $actions .= ' | <a href="' . $base_url . $edit_slug . '/?id={@ID}">Bearbeiten</a>';
+    }
+
+    $row = '<tr>'
+        . '<td>{@ID}</td>'
+        . '<td>{@post_title}</td>'
+        . '<td>{@' . $status_field . '}</td>'
+        . $date_td
+        . '<td>{@betrag}</td>'
+        . '<td>' . $actions . '</td>'
+        . '</tr>' . "\n";
+
+    if ($hide_drafts) {
+        $row = '[if field="' . $status_field . '" value="draft" compare="NOT IN"]' . $row . '[/if]' . "\n";
+    }
+
+    $template_slug = sanitize_key(sprintf(
+        'fsfp-%s-%s-%s',
+        $post_type,
+        $include_edit_link ? 'edit' : 'view',
+        $hide_drafts ? 'no-drafts' : 'all'
+    ));
+    fsfp_cli_upsert_pods_template(
+        $template_slug,
+        $template_slug,
+        '[before]' . "\n"
+        . '<table class="fsfp-table">' . "\n"
+        . '<thead><tr>'
+        . '<th>ID</th><th>Titel</th><th>Status</th>' . $date_th . '<th>Betrag</th><th>Aktionen</th>'
+        . '</tr></thead>' . "\n"
+        . '<tbody>' . "\n"
+        . '[/before]' . "\n"
+        . $row
+        . '[after]' . "\n"
+        . '</tbody></table>' . "\n"
+        . '[/after]'
+    );
+
+    return '<!-- wp:group {"align":"wide"} --><div class="wp-block-group alignwide">' . "\n"
+        . '<!-- wp:shortcode -->' . "\n"
+        . '[pods name="' . esc_attr($post_type) . '" template="' . esc_attr($template_slug) . '" expires="-1" limit="10" search="1" filters="' . esc_attr($status_field) . '" filters_label="Filtern" pagination="1" pagination_type="paginate" shortcodes="1"]' . "\n"
+        . '<!-- /wp:shortcode -->' . "\n"
+        . '</div><!-- /wp:group -->';
+}
+
+function fsfp_cli_detail_page_content(string $post_type, string $kind, string $list_url): string
 {
     $date_markup = $kind === 'beschluss' ? '<dt>Datum</dt><dd>{@beschlussdatum}</dd>' : '';
     $status_field = $kind === 'beschluss' ? 'beschluss_status' : 'zahlungs_status';
     $description_field = $kind === 'beschluss' ? 'zweck_beschreibung' : 'verwendungszweck';
     $reference_field = $kind === 'beschluss' ? 'zahlungsanweisung_ref' : 'beschluss_ref';
-    $edit_slug = $kind === 'beschluss' ? 'beschluss-bearbeiten' : 'zahlungsanweisung-bearbeiten';
-    $edit_button = '';
-    if ($include_edit_link) {
-        $edit_button = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/dashboard/{@fachschaft}/' . $edit_slug . '/?id={@ID}">Bearbeiten</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
-    }
 
-    return '<!-- wp:html -->' . "\n"
-        . '[pods name="' . esc_attr($post_type) . '" limit="10" search="1" pagination="1" pagination_type="paginate" shortcodes="1"]' . "\n"
-        . '<article class="fsfp-entry"><h3>{@post_title}</h3><dl>'
+    return '<!-- wp:group --><div class="wp-block-group fsfp-detail-page">' . "\n"
+        . '<!-- wp:html -->' . "\n"
+        . '[pods name="' . esc_attr($post_type) . '" slug="{@get.id}"]' . "\n"
+        . '<article class="fsfp-entry">'
+        . '<h3>{@post_title}</h3>'
+        . '<dl>'
         . '<dt>Interne ID</dt><dd>{@ID}</dd>'
         . '<dt>Status</dt><dd>{@' . $status_field . '}</dd>'
         . $date_markup
@@ -377,18 +489,21 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, bool $include_
         . '<dt>Beschreibung</dt><dd>{@' . $description_field . '}</dd>'
         . '<dt>Referenz</dt><dd>{@' . $reference_field . '}</dd>'
         . '<dt>Notizen</dt><dd>{@notes}</dd>'
-        . '</dl>' . $edit_button . '</article>' . "\n"
+        . '</dl>'
+        . '</article>' . "\n"
         . '[/pods]' . "\n"
-        . '<!-- /wp:html -->';
+        . '<!-- /wp:html -->' . "\n"
+        . '<!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->' . "\n"
+        . '</div><!-- /wp:group -->';
 }
 
 function fsfp_cli_list_intro(string $kind): string
 {
     if ($kind === 'beschluss') {
-        return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Die Liste ist durchsuchbar und seitenweise aufgebaut. Nutze die Suche, um Beschlüsse nach Titel oder Beschreibung einzugrenzen. Der Status zeigt, wo ein Vorgang im Workflow steht.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>Workflow-Status:</strong> Entwurf, Eingereicht, Rückfrage, Genehmigt, Abgelehnt, Archiviert.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+        return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Beschlüsse suchen, nach Status filtern und direkt in Details oder Bearbeitung öffnen.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
     }
 
-    return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Die Liste ist durchsuchbar und seitenweise aufgebaut. Nutze die Suche, um Zahlungsanweisungen nach Titel oder Verwendungszweck einzugrenzen. Der Status zeigt den Bearbeitungsstand.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>Workflow-Status:</strong> Entwurf, Eingereicht, Genehmigt, Abgelehnt, Archiviert.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+    return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Zahlungsanweisungen suchen, nach Status filtern und direkt in Details oder Bearbeitung öffnen.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
 }
 
 function fsfp_cli_members_access_block(array $roles, string $content): string
@@ -419,13 +534,12 @@ function fsfp_cli_edit_form_page(string $post_type, string $fields, string $list
         . '</div><script>(function(){var params=new URLSearchParams(window.location.search);var id=params.get("id");var form=document.querySelector(".fsfp-edit-page__form");var notice=document.querySelector(".fsfp-edit-page__notice");if(!form||!notice){return;}if(id&&id.length){form.hidden=false;notice.hidden=true;}else{form.hidden=true;notice.hidden=false;}})();</script></div><!-- /wp:group -->';
 }
 
-function fsfp_cli_workflow_action_buttons(string $create_url, string $edit_url, array $roles): string
+function fsfp_cli_workflow_action_buttons(string $create_url, array $roles): string
 {
     return fsfp_cli_members_access_block(
         $roles,
         '<!-- wp:buttons --><div class="wp-block-buttons">'
-        . '<!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . esc_url($create_url) . '">Erstellen</a></div><!-- /wp:button -->'
-        . '<!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . esc_url($edit_url) . '">Bearbeiten</a></div><!-- /wp:button -->'
+        . '<!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . esc_url($create_url) . '">Neu erstellen</a></div><!-- /wp:button -->'
         . '</div><!-- /wp:buttons -->'
     );
 }
@@ -541,15 +655,17 @@ foreach ($fachschaften as $fachschaft) {
 
     $beschluss_list = '<!-- wp:heading --><h2>Beschlüsse</h2><!-- /wp:heading -->'
         . fsfp_cli_list_intro('beschluss')
+        . fsfp_cli_members_access_block($view_only_roles, fsfp_cli_list_shortcode($types['beschluss'], 'beschluss', $slug, false, true))
         . fsfp_cli_workflow_action_buttons(
             home_url("/dashboard/{$slug}/beschluss-erstellen/"),
-            home_url("/dashboard/{$slug}/beschluss-bearbeiten/"),
             $edit_roles
         )
-        . fsfp_cli_members_access_block($edit_roles, fsfp_cli_list_shortcode($types['beschluss'], 'beschluss', true))
-        . fsfp_cli_members_access_block($view_only_roles, fsfp_cli_list_shortcode($types['beschluss'], 'beschluss'));
+        . fsfp_cli_members_access_block($edit_roles, fsfp_cli_list_shortcode($types['beschluss'], 'beschluss', $slug, true, false));
     $beschluss_list_id = fsfp_cli_upsert_page('beschluesse', 'Beschlüsse', $beschluss_list, $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($beschluss_list_id, $fachschaft_view_roles);
+
+    $beschluss_detail_id = fsfp_cli_upsert_page('beschluss-details', 'Beschluss Details', fsfp_cli_detail_page_content($types['beschluss'], 'beschluss', home_url("/dashboard/{$slug}/beschluesse/")), $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($beschluss_detail_id, $fachschaft_view_roles);
 
     $beschluss_form_fields = 'post_title,beschlussdatum,betrag,zweck_beschreibung,beschluss_status,belege,zahlungsanweisung_ref,notes';
     $beschluss_create_id = fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', fsfp_cli_form_shortcode($types['beschluss'], $beschluss_form_fields, home_url("/dashboard/{$slug}/beschluesse/?created=1")), $fachschaft_id);
@@ -559,15 +675,17 @@ foreach ($fachschaften as $fachschaft) {
 
     $zahlung_list = '<!-- wp:heading --><h2>Zahlungsanweisungen</h2><!-- /wp:heading -->'
         . fsfp_cli_list_intro('zahlung')
+        . fsfp_cli_members_access_block($view_only_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', $slug, false, true))
         . fsfp_cli_workflow_action_buttons(
             home_url("/dashboard/{$slug}/zahlungsanweisung-erstellen/"),
-            home_url("/dashboard/{$slug}/zahlungsanweisung-bearbeiten/"),
             $edit_roles
         )
-        . fsfp_cli_members_access_block($edit_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', true))
-        . fsfp_cli_members_access_block($view_only_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung'));
+        . fsfp_cli_members_access_block($edit_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', $slug, true, false));
     $zahlung_list_id = fsfp_cli_upsert_page('zahlungsanweisungen', 'Zahlungsanweisungen', $zahlung_list, $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($zahlung_list_id, $fachschaft_view_roles);
+
+    $zahlung_detail_id = fsfp_cli_upsert_page('zahlungsanweisung-details', 'Zahlungsanweisung Details', fsfp_cli_detail_page_content($types['zahlung'], 'zahlung', home_url("/dashboard/{$slug}/zahlungsanweisungen/")), $fachschaft_id);
+    fsfp_cli_restrict_page_to_roles($zahlung_detail_id, $fachschaft_view_roles);
 
     $zahlung_form_fields = 'post_title,betrag,verwendungszweck,zahlungs_status,belege,beschluss_ref,notes';
     $zahlung_create_id = fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', fsfp_cli_form_shortcode($types['zahlung'], $zahlung_form_fields, home_url("/dashboard/{$slug}/zahlungsanweisungen/?created=1")), $fachschaft_id);
@@ -575,8 +693,8 @@ foreach ($fachschaften as $fachschaft) {
     $zahlung_edit_id = fsfp_cli_upsert_page('zahlungsanweisung-bearbeiten', 'Zahlungsanweisung bearbeiten', fsfp_cli_edit_form_page($types['zahlung'], $zahlung_form_fields, home_url("/dashboard/{$slug}/zahlungsanweisungen/")), $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($zahlung_edit_id, $edit_roles);
 
-    $global_beschluesse .= '<!-- wp:heading {"level":3} --><h3>' . esc_html($label) . '</h3><!-- /wp:heading -->' . fsfp_cli_list_intro('beschluss') . fsfp_cli_list_shortcode($types['beschluss'], 'beschluss');
-    $global_zahlungen .= '<!-- wp:heading {"level":3} --><h3>' . esc_html($label) . '</h3><!-- /wp:heading -->' . fsfp_cli_list_intro('zahlung') . fsfp_cli_list_shortcode($types['zahlung'], 'zahlung');
+    $global_beschluesse .= '<!-- wp:heading {"level":3} --><h3>' . esc_html($label) . '</h3><!-- /wp:heading -->' . fsfp_cli_list_intro('beschluss') . fsfp_cli_list_shortcode($types['beschluss'], 'beschluss', $slug);
+    $global_zahlungen .= '<!-- wp:heading {"level":3} --><h3>' . esc_html($label) . '</h3><!-- /wp:heading -->' . fsfp_cli_list_intro('zahlung') . fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', $slug);
 }
 
 $global_beschluesse_id = fsfp_cli_upsert_page('beschluesse', 'Alle Beschlüsse', $global_beschluesse, $dashboard_id);
@@ -614,6 +732,33 @@ update_option('hab_settings', [
 ]);
 
 delete_option('fs_finanzportal_aam_policy_manifest');
+
+// Add global styles for improved readability (Problem 1 & Problem 4 wide theme)
+if (function_exists('wp_update_custom_css_post')) {
+    $custom_css = "
+body .is-layout-constrained > .alignwide,
+body .is-layout-constrained > .wp-block-group.alignwide,
+body .entry-content > .alignwide { max-width: min(1200px, calc(100vw - 3rem)); }
+.fsfp-list-intro { margin: 0 0 0.75rem; padding: 0; color: #475569; }
+.fsfp-list-intro p { margin: 0; }
+.pods-form-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin: 1rem 0; padding: 1rem; border: 1px solid #d8dee4; background: #f6f8fa; }
+.pods-form-filters .pods-form-ui-field { min-width: 12rem; margin: 0; }
+.pods-form-filters-search { min-width: 16rem; flex: 1 1 18rem; }
+.pods-form-filters input,
+.pods-form-filters select { min-height: 2.5rem; padding: 0.45rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 4px; }
+.pods-form-filters-submit { cursor: pointer; background: #1f6feb; color: #fff; border-color: #1f6feb; }
+.fsfp-table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.95rem; table-layout: auto; }
+.fsfp-table th, .fsfp-table td { padding: 0.85rem; border-bottom: 1px solid #d8dee4; text-align: left; vertical-align: top; }
+.fsfp-table th { background-color: #f6f8fa; color: #24292f; font-weight: 600; }
+.fsfp-table tbody tr:hover { background: #f6f8fa; }
+.fsfp-table td:last-child { white-space: nowrap; }
+.wp-block-buttons { margin-bottom: 1rem; }
+.fsfp-detail-page dt { font-weight: bold; margin-top: 1rem; }
+.fsfp-detail-page dd { margin-left: 0; margin-bottom: 0.5rem; }
+footer, .site-footer, .wp-block-template-part.site-footer { display: none !important; }
+";
+    wp_update_custom_css_post($custom_css);
+}
 
 foreach ($fachschaften as $fachschaft) {
     fsfp_cli_upsert_post('fachschaft', sanitize_key($fachschaft['slug']), $fachschaft['label']);
@@ -664,6 +809,8 @@ foreach ($items as $item) {
 
     update_post_meta($post_id, 'beschluss_status', $item['status'] ?? 'draft');
 }
+
+fsfp_cli_publish_existing_workflow_posts($fachschaften);
 
 flush_rewrite_rules();
 

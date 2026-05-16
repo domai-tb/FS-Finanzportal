@@ -8,9 +8,11 @@ Each Fachschaft gets:
 
 - `/dashboard/<slug>/`
 - `/dashboard/<slug>/beschluesse/`
+- `/dashboard/<slug>/beschluss-details/`
 - `/dashboard/<slug>/beschluss-erstellen/`
 - `/dashboard/<slug>/beschluss-bearbeiten/`
 - `/dashboard/<slug>/zahlungsanweisungen/`
+- `/dashboard/<slug>/zahlungsanweisung-details/`
 - `/dashboard/<slug>/zahlungsanweisung-erstellen/`
 - `/dashboard/<slug>/zahlungsanweisung-bearbeiten/`
 
@@ -25,11 +27,12 @@ users do not see global links and cannot view global page content directly.
 ## List and Detail
 
 List pages use Pods shortcodes against the scoped post type for the selected
-Fachschaft. Entries show status, amount, description, references, notes, and a
-stable internal ID directly in the list. The generated list pages now include a
-search box and pagination so the portal remains readable once the record set
-grows. Each editable row also links to a frontend edit page with the record ID
-in the query string, for example `/dashboard/informatik/beschluss-bearbeiten/?id=123`.
+Fachschaft. Entries show status, amount, a stable internal ID, and row actions.
+The generated list pages include a search box, status filter, and pagination so
+the portal remains readable once the record set grows. Each row links to a
+restricted detail page, and editable rows also link to a frontend edit page with
+the record ID in the query string, for example
+`/dashboard/informatik/beschluss-bearbeiten/?id=123`.
 Direct public record routes for the workflow post types are disabled, so users
 view records through the restricted portal pages.
 

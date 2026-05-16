@@ -189,6 +189,7 @@ function fsfp_base_pod(string $name, string $label, string $singular, string $ca
         'menu_position' => $position,
         'menu_icon' => $icon,
         'built_in_post_status' => 'private,draft,pending,publish',
+        'default_status' => 'publish',
     ];
 }
 

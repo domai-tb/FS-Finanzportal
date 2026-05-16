@@ -379,9 +379,11 @@ foreach ($fachschaften as $fachschaft) {
     foreach ([
         "dashboard/{$slug}",
         "dashboard/{$slug}/beschluesse",
+        "dashboard/{$slug}/beschluss-details",
         "dashboard/{$slug}/beschluss-erstellen",
         "dashboard/{$slug}/beschluss-bearbeiten",
         "dashboard/{$slug}/zahlungsanweisungen",
+        "dashboard/{$slug}/zahlungsanweisung-details",
         "dashboard/{$slug}/zahlungsanweisung-erstellen",
         "dashboard/{$slug}/zahlungsanweisung-bearbeiten",
     ] as $path) {
@@ -471,7 +473,7 @@ if (!str_contains($informatik_finance_content, 'Demo: Technik-Budget Sommerfest'
 }
 if (str_contains($informatik_finance_content, 'wp-admin')
     || !str_contains($informatik_finance_content, '/dashboard/informatik/beschluss-bearbeiten/?id=')
-    || !str_contains($informatik_finance_content, 'Erstellen')
+    || !str_contains($informatik_finance_content, 'Neu erstellen')
     || !str_contains($informatik_finance_content, 'Bearbeiten')
 ) {
     fs_finanzportal_verify_fail('Informatik finance must see frontend create/edit controls on the frontend list.');
