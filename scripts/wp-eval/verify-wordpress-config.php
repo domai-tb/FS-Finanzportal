@@ -42,7 +42,22 @@ function fs_finanzportal_global_access_roles(): array
     return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer', 'auditor'];
 }
 
+function fs_finanzportal_global_overview_roles(): array
+{
+    return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer'];
+}
+
 function fs_finanzportal_global_edit_roles(): array
+{
+    return fs_finanzportal_global_zahlung_edit_roles();
+}
+
+function fs_finanzportal_global_beschluss_edit_roles(): array
+{
+    return ['administrator', 'portal_admin'];
+}
+
+function fs_finanzportal_global_zahlung_edit_roles(): array
 {
     return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer'];
 }
@@ -58,6 +73,17 @@ function fs_finanzportal_fachschaft_access_roles(string $slug): array
         "fs_{$slug}_reader",
         "fs_{$slug}_finance",
     ], fs_finanzportal_global_access_roles());
+}
+
+function fs_finanzportal_fachschaft_view_roles(string $slug): array
+{
+    return [
+        "fs_{$slug}_reader",
+        "fs_{$slug}_finance",
+        'administrator',
+        'portal_admin',
+        'auditor',
+    ];
 }
 
 function fs_finanzportal_read_caps(string $capability_type): array
@@ -83,6 +109,31 @@ function fs_finanzportal_edit_caps(string $capability_type): array
         "edit_published_{$plural}",
         "publish_{$plural}",
     ]);
+}
+
+function fs_finanzportal_expected_status_values(string $kind): array
+{
+    if ($kind === 'beschluss') {
+        return ['draft', 'approved', 'rejected'];
+    }
+
+    return ['draft', 'submitted', 'correction_requested', 'cancelled', 'executed'];
+}
+
+function fs_finanzportal_pick_values($field): array
+{
+    $custom = is_array($field) ? (string) ($field['pick_custom'] ?? '') : (isset($field->pick_custom) ? (string) $field->pick_custom : (isset($field['pick_custom']) ? (string) $field['pick_custom'] : ''));
+    $values = [];
+
+    foreach (preg_split('/\R/', trim($custom)) ?: [] as $line) {
+        if ($line === '') {
+            continue;
+        }
+        $parts = explode('|', $line, 2);
+        $values[] = $parts[0];
+    }
+
+    return $values;
 }
 
 function fs_finanzportal_verify_role_has_caps(string $role_name, array $caps): void
@@ -190,6 +241,14 @@ if (!function_exists('members_can_current_user_view_post')) {
     fs_finanzportal_verify_fail('Members content permissions API is unavailable.');
 }
 
+if (!function_exists('is_plugin_active')) {
+    require_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
+
+if (!is_plugin_active('meta-ledger/meta-ledger.php')) {
+    fs_finanzportal_verify_fail('Meta Ledger plugin must be active for workflow audit logging.');
+}
+
 if (!post_type_exists('fachschaft')) {
     fs_finanzportal_verify_fail('Post type fachschaft is not registered.');
 }
@@ -198,10 +257,15 @@ $pods_api = pods_api();
 $fachschaften = fs_finanzportal_load_fachschaften();
 $all_read_caps = [];
 $all_edit_caps = [];
+$all_beschluss_read_caps = [];
+$all_beschluss_write_caps = [];
+$all_zahlung_edit_caps = [];
+$all_workflow_post_types = [];
 
 foreach ($fachschaften as $fachschaft) {
     $slug = sanitize_key($fachschaft['slug']);
     $types = fs_finanzportal_workflow_types($slug);
+    $all_workflow_post_types = array_merge($all_workflow_post_types, array_values($types));
 
     foreach ($types as $kind => $post_type) {
         if (!post_type_exists($post_type)) {
@@ -217,8 +281,18 @@ foreach ($fachschaften as $fachschaft) {
         }
 
         $required_fields = $kind === 'beschluss'
-            ? ['fachschaft', 'beschlussdatum', 'betrag', 'zweck_beschreibung', 'beschluss_status', 'belege', 'zahlungsanweisung_ref', 'notes']
-            : ['fachschaft', 'betrag', 'verwendungszweck', 'zahlungs_status', 'belege', 'beschluss_ref', 'notes'];
+            ? ['fachschaft', 'beschlussdatum', 'betrag', 'zweck_beschreibung', 'beschluss_status', 'decided_at', 'decided_by', 'decision_note', 'belege', 'notes']
+            : ['fachschaft', 'betrag', 'verwendungszweck', 'zahlungs_status', 'submitted_at', 'reviewed_at', 'reviewed_by', 'executed_at', 'executed_by', 'workflow_note', 'belege', 'beschluss_ref', 'notes'];
+
+        if ($kind === 'beschluss') {
+            $legacy_field = method_exists($pods_api, 'load_field')
+                ? $pods_api->load_field(['pod' => $post_type, 'name' => 'zahlungsanweisung_ref'])
+                : null;
+
+            if (!empty($legacy_field)) {
+                fs_finanzportal_verify_fail("Pods field zahlungsanweisung_ref must not remain on {$post_type}; related Zahlungsanweisungen are derived from beschluss_ref.");
+            }
+        }
 
         foreach ($required_fields as $field_name) {
             $field = method_exists($pods_api, 'load_field')
@@ -228,11 +302,48 @@ foreach ($fachschaften as $fachschaft) {
             if (empty($field)) {
                 fs_finanzportal_verify_fail("Pods field {$field_name} is missing on {$post_type}.");
             }
+
+            if (in_array($field_name, ['decided_at', 'submitted_at', 'reviewed_at', 'executed_at'], true)
+                && ($field['type'] ?? '') !== 'date'
+            ) {
+                fs_finanzportal_verify_fail("Pods field {$field_name} on {$post_type} must be a date field.");
+            }
+
+            if ($field_name === 'beschluss_status' || $field_name === 'zahlungs_status') {
+                $actual_values = fs_finanzportal_pick_values($field);
+                $expected_values = fs_finanzportal_expected_status_values($kind);
+                sort($actual_values);
+                sort($expected_values);
+                if ($actual_values !== $expected_values) {
+                    fs_finanzportal_verify_fail("Pods field {$field_name} on {$post_type} has wrong workflow statuses: " . implode(',', $actual_values));
+                }
+            }
+
+            if ($field_name === 'beschluss_ref') {
+                if (($field['type'] ?? '') !== 'pick'
+                    || ($field['pick_object'] ?? '') !== 'post_type'
+                    || ($field['pick_val'] ?? '') !== $types['beschluss']
+                    || ($field['pick_where'] ?? '') !== "beschluss_status.meta_value = 'approved'"
+                    || (int) ($field['required'] ?? 0) !== 1
+                ) {
+                    fs_finanzportal_verify_fail("Pods field beschluss_ref on {$post_type} must be a required relationship to {$types['beschluss']}.");
+                }
+            }
         }
 
         $all_read_caps = array_merge($all_read_caps, fs_finanzportal_read_caps($capability_type));
         $all_edit_caps = array_merge($all_edit_caps, fs_finanzportal_edit_caps($capability_type));
     }
+
+    $all_beschluss_read_caps = array_merge($all_beschluss_read_caps, fs_finanzportal_read_caps(fs_finanzportal_capability_type($types['beschluss'])));
+    $all_beschluss_write_caps = array_merge(
+        $all_beschluss_write_caps,
+        array_filter(
+            fs_finanzportal_edit_caps(fs_finanzportal_capability_type($types['beschluss'])),
+            fn($cap) => str_starts_with($cap, 'edit_') || str_starts_with($cap, 'publish_')
+        )
+    );
+    $all_zahlung_edit_caps = array_merge($all_zahlung_edit_caps, fs_finanzportal_edit_caps(fs_finanzportal_capability_type($types['zahlung'])));
 }
 
 foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'auditor', 'fs_portal_empty'] as $role_name) {
@@ -241,9 +352,27 @@ foreach (['portal_admin', 'asta_finance', 'asta_reviewer', 'auditor', 'fs_portal
     }
 }
 
+$configured_meta_ledger_types = get_option('meta_ledger_post_types', []);
+if (!is_array($configured_meta_ledger_types)) {
+    fs_finanzportal_verify_fail('Meta Ledger post type configuration must be an array.');
+}
+sort($configured_meta_ledger_types);
+$expected_meta_ledger_types = array_values(array_unique($all_workflow_post_types));
+sort($expected_meta_ledger_types);
+
+if ($configured_meta_ledger_types !== $expected_meta_ledger_types) {
+    fs_finanzportal_verify_fail('Meta Ledger must be configured for all scoped workflow post types.');
+}
+
+if ((int) get_option('meta_ledger_retention_count') < 200) {
+    fs_finanzportal_verify_fail('Meta Ledger retention must keep at least 200 entries per meta key.');
+}
+
 fs_finanzportal_verify_role_has_caps('portal_admin', ['edit_fachschaft_records', 'publish_fachschaft_records']);
-fs_finanzportal_verify_role_has_caps('asta_finance', array_values(array_unique($all_edit_caps)));
-fs_finanzportal_verify_role_has_caps('asta_reviewer', array_values(array_unique($all_edit_caps)));
+fs_finanzportal_verify_role_has_caps('asta_finance', array_values(array_unique(array_merge($all_beschluss_read_caps, $all_zahlung_edit_caps))));
+fs_finanzportal_verify_role_has_caps('asta_reviewer', array_values(array_unique(array_merge($all_beschluss_read_caps, $all_zahlung_edit_caps))));
+fs_finanzportal_verify_role_lacks_caps('asta_finance', array_values(array_unique($all_beschluss_write_caps)));
+fs_finanzportal_verify_role_lacks_caps('asta_reviewer', array_values(array_unique($all_beschluss_write_caps)));
 fs_finanzportal_verify_role_has_caps('auditor', array_values(array_unique($all_read_caps)));
 fs_finanzportal_verify_role_lacks_caps('auditor', array_filter(array_values(array_unique($all_edit_caps)), fn($cap) => str_starts_with($cap, 'edit_') || str_starts_with($cap, 'publish_')));
 fs_finanzportal_verify_role_lacks_caps('fs_portal_empty', array_filter(array_values(array_unique($all_read_caps)), fn($cap) => $cap !== 'read'));
@@ -307,6 +436,12 @@ if (!str_contains($dashboard->post_content, '[members_access role=')
     fs_finanzportal_verify_fail('Dashboard must use Members role-gated blocks.');
 }
 
+if (!str_contains($dashboard->post_content, 'Alle Beschlüsse öffnen')
+    || !str_contains($dashboard->post_content, 'Alle Zahlungsanweisungen öffnen')
+) {
+    fs_finanzportal_verify_fail('Dashboard must link AStA staff to both unified overview pages.');
+}
+
 $menu = wp_get_nav_menu_object('Portal Navigation');
 if (!$menu) {
     fs_finanzportal_verify_fail('Portal Navigation menu is missing.');
@@ -330,6 +465,29 @@ foreach ($menu_urls as $url) {
     }
 }
 
+$block_navigation = get_page_by_path('portal-navigation', OBJECT, 'wp_navigation');
+if (!$block_navigation) {
+    fs_finanzportal_verify_fail('Portal block navigation is missing.');
+}
+
+if (!str_contains($block_navigation->post_content, 'fsfp-nav-beschluesse')
+    || !str_contains($block_navigation->post_content, 'fsfp-nav-zahlungsanweisungen')
+    || !str_contains($block_navigation->post_content, 'scopedBaseFromPath')
+    || !str_contains($block_navigation->post_content, 'dashboardBaseFromContent')
+    || !str_contains($block_navigation->post_content, 'pathParts')
+) {
+    fs_finanzportal_verify_fail('Portal block navigation must expose dynamic workflow header links.');
+}
+
+if (str_contains($block_navigation->post_content, '[members_access')
+    || str_contains($block_navigation->post_content, '[/members_access]')
+    || str_contains($block_navigation->post_content, '/dashboard/informatik/beschluesse/')
+) {
+    fs_finanzportal_verify_fail('Portal block navigation must not render Members shortcodes or duplicate scoped static links.');
+}
+
+wp_set_current_user(0);
+
 $members_settings = get_option('members_settings');
 if (!is_array($members_settings) || empty($members_settings['content_permissions'])) {
     fs_finanzportal_verify_fail('Members content permissions must be enabled.');
@@ -341,7 +499,7 @@ $global_pages = [
 ];
 
 foreach ($global_pages as $global_page) {
-    fs_finanzportal_verify_page_roles($global_page, fs_finanzportal_global_access_roles());
+    fs_finanzportal_verify_page_roles($global_page, fs_finanzportal_global_overview_roles());
 }
 
 $expected_direct_children = ['beschluesse', 'informatik', 'maschinenbau', 'philosophie', 'zahlungsanweisungen'];
@@ -389,10 +547,22 @@ foreach ($fachschaften as $fachschaft) {
     ] as $path) {
         $portal_page = fs_finanzportal_page_by_path($path);
         $restricted_pages_by_fachschaft[$slug][] = $portal_page;
-        fs_finanzportal_verify_page_roles($portal_page, str_contains($path, 'erstellen') || str_contains($path, 'bearbeiten')
-            ? array_merge(["fs_{$slug}_finance"], fs_finanzportal_global_edit_roles())
-            : fs_finanzportal_fachschaft_access_roles($slug)
-        );
+
+        $expected_page_roles = fs_finanzportal_fachschaft_access_roles($slug);
+        if ($path === "dashboard/{$slug}"
+            || str_ends_with($path, '/beschluesse')
+            || str_ends_with($path, '/zahlungsanweisungen')
+        ) {
+            $expected_page_roles = fs_finanzportal_fachschaft_view_roles($slug);
+        } elseif (str_contains($path, 'beschluss-erstellen') || str_contains($path, 'beschluss-bearbeiten')) {
+            $expected_page_roles = array_merge(["fs_{$slug}_finance"], ['administrator', 'portal_admin']);
+        } elseif (str_contains($path, 'zahlungsanweisung-erstellen')) {
+            $expected_page_roles = array_merge(["fs_{$slug}_finance"], fs_finanzportal_global_beschluss_edit_roles());
+        } elseif (str_contains($path, 'zahlungsanweisung-bearbeiten')) {
+            $expected_page_roles = array_merge(["fs_{$slug}_finance"], fs_finanzportal_global_zahlung_edit_roles());
+        }
+
+        fs_finanzportal_verify_page_roles($portal_page, $expected_page_roles);
 
         if (str_contains($portal_page->post_content, '[pods_table')) {
             fs_finanzportal_verify_fail("Frontend portal page {$path} still depends on custom runtime shortcode.");
@@ -406,8 +576,30 @@ foreach ($fachschaften as $fachschaft) {
             fs_finanzportal_verify_fail("Frontend portal page {$path} must not override post_status in Pods shortcodes.");
         }
 
+        if (str_ends_with($path, '/beschluesse') || str_ends_with($path, '/zahlungsanweisungen')) {
+            if (!str_contains($portal_page->post_content, 'fsfp-scoped-overview')
+                || !str_contains($portal_page->post_content, 'data-scoped-search')
+                || !str_contains($portal_page->post_content, 'data-scoped-status')
+                || !str_contains($portal_page->post_content, 'data-scoped-prev')
+                || !str_contains($portal_page->post_content, 'data-scoped-next')
+                || str_contains($portal_page->post_content, 'search="1"')
+                || str_contains($portal_page->post_content, 'filters=')
+                || str_contains($portal_page->post_content, 'pagination=')
+            ) {
+                fs_finanzportal_verify_fail("Frontend list page {$path} must use the shared client-side table controls.");
+            }
+        }
+
         if (str_contains($portal_page->post_content, '{@permalink}')) {
             fs_finanzportal_verify_fail("Frontend portal page {$path} must not expose direct workflow permalinks.");
+        }
+
+        if (str_contains($path, 'beschluss-erstellen') && str_contains($portal_page->post_content, 'beschluss_status')) {
+            fs_finanzportal_verify_fail("Beschluss create page {$path} must not expose the status field.");
+        }
+
+        if (str_contains($path, 'zahlungsanweisung-erstellen') && str_contains($portal_page->post_content, 'zahlungs_status')) {
+            fs_finanzportal_verify_fail("Zahlungsanweisung create page {$path} must not expose the status field.");
         }
     }
 }
@@ -423,6 +615,24 @@ foreach ($global_pages as $global_page) {
 
     if (str_contains($global_page->post_content, '{@permalink}')) {
         fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must not expose direct workflow permalinks.");
+    }
+
+    if (!str_contains($global_page->post_content, 'fsfp-unified-overview')
+        || !str_contains($global_page->post_content, 'data-unified-search')
+        || !str_contains($global_page->post_content, 'data-unified-status')
+        || !str_contains($global_page->post_content, 'data-unified-fachschaft')
+        || !str_contains($global_page->post_content, 'data-unified-prev')
+        || !str_contains($global_page->post_content, 'data-unified-next')
+        || !str_contains($global_page->post_content, '<tbody data-unified-body>')
+    ) {
+        fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must render a unified overview table with filters and pagination.");
+    }
+
+    if (str_contains($global_page->post_content, '<h3>Fachschaft Informatik</h3>')
+        || str_contains($global_page->post_content, '<h3>Fachschaft Maschinenbau</h3>')
+        || str_contains($global_page->post_content, '<h3>Fachschaft Philosophie</h3>')
+    ) {
+        fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must not render one visible table section per Fachschaft.");
     }
 }
 
@@ -440,13 +650,27 @@ foreach ($global_pages as $global_page) {
     fs_finanzportal_verify_user_cannot_view('demo-maschinenbau-reader', $global_page);
 }
 
-foreach (['demo-asta', 'demo-reviewer', 'demo-auditor'] as $global_user) {
+foreach (['demo-asta', 'demo-reviewer'] as $global_user) {
     foreach ($global_pages as $global_page) {
         fs_finanzportal_verify_user_can_view($global_user, $global_page);
     }
     foreach ($restricted_pages_by_fachschaft as $pages) {
-        fs_finanzportal_verify_user_can_view($global_user, $pages[0]);
+        fs_finanzportal_verify_user_cannot_view($global_user, $pages[0]);
+        fs_finanzportal_verify_user_cannot_view($global_user, $pages[1]);
+        fs_finanzportal_verify_user_can_view($global_user, $pages[2]);
+        fs_finanzportal_verify_user_cannot_view($global_user, $pages[5]);
+        fs_finanzportal_verify_user_can_view($global_user, $pages[6]);
     }
+}
+
+foreach ($restricted_pages_by_fachschaft as $pages) {
+    fs_finanzportal_verify_user_can_view('demo-auditor', $pages[0]);
+}
+foreach ($global_pages as $global_page) {
+    fs_finanzportal_verify_user_cannot_view('demo-auditor', $global_page);
+    fs_finanzportal_verify_user_cannot_view('demo-fachschaft', $global_page);
+    fs_finanzportal_verify_user_cannot_view('demo-maschinenbau-finance', $global_page);
+    fs_finanzportal_verify_user_cannot_view('demo-philosophie-finance', $global_page);
 }
 
 foreach ($global_pages as $global_page) {
@@ -458,7 +682,56 @@ foreach ($restricted_pages_by_fachschaft as $pages) {
 
 wp_set_current_user(0);
 
+$global_beschluesse_content = fs_finanzportal_render_page_as_user('demo-asta', $global_pages[0]);
+if (!str_contains($global_beschluesse_content, 'Demo: Technik-Budget Sommerfest')
+    || !str_contains($global_beschluesse_content, 'Demo: Erstsemester-Material')
+    || !str_contains($global_beschluesse_content, 'Demo: Literatur für Lesekreis')
+    || !str_contains($global_beschluesse_content, 'data-fachschaft="informatik"')
+    || !str_contains($global_beschluesse_content, 'data-fachschaft="maschinenbau"')
+    || !str_contains($global_beschluesse_content, 'data-fachschaft="philosophie"')
+) {
+    fs_finanzportal_verify_fail('AStA global Beschluss overview must include source rows from multiple Fachschaften.');
+}
+
+$global_beschluesse_reviewer_content = fs_finanzportal_render_page_as_user('demo-reviewer', $global_pages[0]);
+if (!str_contains($global_beschluesse_reviewer_content, 'Demo: Technik-Budget Sommerfest')
+    || !str_contains($global_beschluesse_reviewer_content, 'fsfp-unified-table')
+) {
+    fs_finanzportal_verify_fail('AStA reviewer must see Beschluss entries in the unified overview table.');
+}
+
+$global_zahlungen_raw_content = $global_pages[1]->post_content;
+if (!str_contains($global_zahlungen_raw_content, 'fsfp-unified-zahlungen')) {
+    fs_finanzportal_verify_fail('AStA global payment overview must include unified review actions for non-executed records.');
+}
+
+$global_zahlung_template = get_page_by_path('fsfp-global-za_informatik-zahlung-rows', OBJECT, '_pods_template');
+if (!$global_zahlung_template
+    || !str_contains($global_zahlung_template->post_content, 'Rückfrage / Ausgeführt')
+    || !str_contains($global_zahlung_template->post_content, 'compare="NOT IN"')
+) {
+    fs_finanzportal_verify_fail('AStA global payment overview row template must include review actions for non-executed records.');
+}
+
+$global_zahlungen_reviewer_content = fs_finanzportal_render_page_as_user('demo-reviewer', $global_pages[1]);
+if (!str_contains($global_zahlungen_reviewer_content, 'fsfp-unified-table')) {
+    fs_finanzportal_verify_fail('AStA reviewer must see the unified Zahlungsanweisungen overview table.');
+}
+
 $informatik_beschluesse_page = $restricted_pages_by_fachschaft['informatik'][1];
+$beschluss_edit_template = get_page_by_path('fsfp-b_informatik-bearbeiten-all', OBJECT, '_pods_template');
+if (!$beschluss_edit_template || !str_contains($beschluss_edit_template->post_content, '[if field="beschluss_status" value="draft"]')) {
+    fs_finanzportal_verify_fail('Beschluss edit links must only be shown for draft records.');
+}
+
+$informatik_beschluss_edit_page = $restricted_pages_by_fachschaft['informatik'][4];
+if (!str_contains($informatik_beschluss_edit_page->post_content, 'decided_at')
+    || !str_contains($informatik_beschluss_edit_page->post_content, 'decided_by')
+    || !str_contains($informatik_beschluss_edit_page->post_content, 'decision_note')
+) {
+    fs_finanzportal_verify_fail('Beschluss workflow form must expose decision date, actor, and note fields.');
+}
+
 $informatik_reader_content = fs_finanzportal_render_page_as_user('demo-informatik-reader', $informatik_beschluesse_page);
 if (!str_contains($informatik_reader_content, 'Demo: Technik-Budget Sommerfest')) {
     fs_finanzportal_verify_fail('Informatik reader must see Informatik Beschluss entries on the frontend list.');
@@ -477,6 +750,119 @@ if (str_contains($informatik_finance_content, 'wp-admin')
     || !str_contains($informatik_finance_content, 'Bearbeiten')
 ) {
     fs_finanzportal_verify_fail('Informatik finance must see frontend create/edit controls on the frontend list.');
+}
+
+$informatik_zahlungen_page = $restricted_pages_by_fachschaft['informatik'][5];
+$informatik_zahlungen_raw_content = $informatik_zahlungen_page->post_content;
+if (!str_contains($informatik_zahlungen_raw_content, 'Zahlungsanweisung vorbereiten')
+    || !str_contains($informatik_zahlungen_raw_content, 'AStA-Prüfung')
+    || !str_contains($informatik_zahlungen_raw_content, 'fsfp-status-flow')
+) {
+    fs_finanzportal_verify_fail('Payment list must contain finance and AStA workflow action controls.');
+}
+
+$informatik_beschluss_detail_page = $restricted_pages_by_fachschaft['informatik'][2];
+if (!str_contains($informatik_beschluss_detail_page->post_content, 'Zugehörige Zahlungsanweisungen')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'name="za_informatik"')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'where="beschluss_ref.ID = {@get.id}"')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'Betrag Beschlossen')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'Betrag Offen')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'data-open-budget')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'Intl.NumberFormat')
+    || !str_contains($informatik_beschluss_detail_page->post_content, '[^0-9,.-]')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'var marker=root.querySelector("[data-current-beschluss-id]")')
+) {
+    fs_finanzportal_verify_fail('Beschluss detail page must list related Zahlungsanweisungen and calculate the open budget.');
+}
+if (!str_contains($informatik_beschluss_detail_page->post_content, 'Workflow-Log')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'template="fsfp-b_informatik-workflow-log"')
+    || str_contains($informatik_beschluss_detail_page->post_content, '[pods name="b_informatik" slug="{@get.id}"]<table')
+    || str_contains($informatik_beschluss_detail_page->post_content, 'Meta Ledger protokolliert')
+) {
+    fs_finanzportal_verify_fail('Beschluss detail page must show a unified domain workflow log instead of static audit text.');
+}
+
+$beschluss_workflow_template = get_page_by_path('fsfp-b_informatik-workflow-log', OBJECT, '_pods_template');
+if (!$beschluss_workflow_template
+    || !str_contains($beschluss_workflow_template->post_content, 'fsfp-workflow-log')
+    || !str_contains($beschluss_workflow_template->post_content, '<td>Entscheidung</td>')
+    || !str_contains($beschluss_workflow_template->post_content, '{@decided_at}')
+    || !str_contains($beschluss_workflow_template->post_content, '{@decided_by}')
+    || !str_contains($beschluss_workflow_template->post_content, '{@decision_note}')
+) {
+    fs_finanzportal_verify_fail('Beschluss workflow log template must render decision metadata.');
+}
+
+$related_zahlung_template = get_page_by_path('fsfp-za_informatik-related-to-beschluss', OBJECT, '_pods_template');
+if (!$related_zahlung_template
+    || !str_contains($related_zahlung_template->post_content, '/dashboard/informatik/zahlungsanweisung-details/?id={@ID}')
+    || !str_contains($related_zahlung_template->post_content, 'fsfp-related-zahlung-amount')
+) {
+    fs_finanzportal_verify_fail('Beschluss related Zahlungsanweisungen template must link to payment detail pages and expose amounts for budget calculation.');
+}
+
+$informatik_zahlungen_detail_page = $restricted_pages_by_fachschaft['informatik'][6];
+if (!str_contains($informatik_zahlungen_detail_page->post_content, 'Workflow-Log')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'template="fsfp-za_informatik-workflow-log"')
+    || str_contains($informatik_zahlungen_detail_page->post_content, '[pods name="za_informatik" slug="{@get.id}"]<table')
+    || str_contains($informatik_zahlungen_detail_page->post_content, 'Meta Ledger protokolliert')
+) {
+    fs_finanzportal_verify_fail('Payment detail page must show a unified domain workflow log instead of static audit text.');
+}
+
+$zahlung_workflow_template = get_page_by_path('fsfp-za_informatik-workflow-log', OBJECT, '_pods_template');
+if (!$zahlung_workflow_template
+    || !str_contains($zahlung_workflow_template->post_content, 'fsfp-workflow-log')
+    || !str_contains($zahlung_workflow_template->post_content, '<td>Eingereicht</td>')
+    || !str_contains($zahlung_workflow_template->post_content, '<td>Geprüft</td>')
+    || !str_contains($zahlung_workflow_template->post_content, '<td>Ausgeführt</td>')
+    || !str_contains($zahlung_workflow_template->post_content, '{@submitted_at}')
+    || !str_contains($zahlung_workflow_template->post_content, '{@reviewed_at}')
+    || !str_contains($zahlung_workflow_template->post_content, '{@executed_at}')
+    || !str_contains($zahlung_workflow_template->post_content, '{@workflow_note}')
+) {
+    fs_finanzportal_verify_fail('Payment workflow log template must render payment workflow metadata.');
+}
+if (!str_contains($informatik_zahlungen_detail_page->post_content, '/dashboard/informatik/beschluss-details/?id={@beschluss_ref.ID}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, '{@beschluss_ref.post_title}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, '{@beschluss_ref.betrag}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'Betrag Zahlungsanweisung')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'Betrag Beschlossen')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'Betrag Offen')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'data-current-beschluss-id="{@beschluss_ref.ID}"')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'fsfp-budget-source')
+) {
+    fs_finanzportal_verify_fail('Payment detail page must link the related Beschluss and show calculated budget context.');
+}
+
+$zahlung_budget_template = get_page_by_path('fsfp-za_informatik-budget-source', OBJECT, '_pods_template');
+if (!$zahlung_budget_template
+    || !str_contains($zahlung_budget_template->post_content, 'data-beschluss-id="{@beschluss_ref.ID}"')
+    || !str_contains($zahlung_budget_template->post_content, 'data-payment-amount="{@betrag}"')
+) {
+    fs_finanzportal_verify_fail('Payment detail page must have a budget source template for related Zahlungsanweisungen.');
+}
+
+$zahlung_edit_template = get_page_by_path('fsfp-za_informatik-bearbeiteneinreichenstornieren-all', OBJECT, '_pods_template');
+if (!$zahlung_edit_template || !str_contains($zahlung_edit_template->post_content, 'compare="NOT IN"')) {
+    fs_finanzportal_verify_fail('Payment edit links must be hidden for executed records where Pods templates support it.');
+}
+
+$informatik_zahlung_edit_page = $restricted_pages_by_fachschaft['informatik'][8];
+if (!str_contains($informatik_zahlung_edit_page->post_content, 'submitted_at')
+    || !str_contains($informatik_zahlung_edit_page->post_content, 'reviewed_at')
+    || !str_contains($informatik_zahlung_edit_page->post_content, 'executed_at')
+    || !str_contains($informatik_zahlung_edit_page->post_content, 'workflow_note')
+) {
+    fs_finanzportal_verify_fail('Payment workflow forms must expose workflow date and note fields.');
+}
+
+$informatik_zahlungen_auditor_content = fs_finanzportal_render_page_as_user('demo-auditor', $informatik_zahlungen_page);
+if (str_contains($informatik_zahlungen_auditor_content, 'Neu erstellen')
+    || str_contains($informatik_zahlungen_auditor_content, 'Bearbeiten')
+    || str_contains($informatik_zahlungen_auditor_content, 'Rückfrage / Ausgeführt')
+) {
+    fs_finanzportal_verify_fail('Auditor must not see payment create/edit/action controls.');
 }
 
 wp_set_current_user(0);
@@ -591,6 +977,30 @@ foreach ($demo_items as $item) {
 
     if (count($duplicates) !== 1) {
         fs_finanzportal_verify_fail("Demo Beschluss {$slug} is not idempotent; found " . count($duplicates) . ' records.');
+    }
+}
+
+foreach ($fachschaften as $fachschaft) {
+    $slug = sanitize_key($fachschaft['slug']);
+    $types = fs_finanzportal_workflow_types($slug);
+
+    foreach ([
+        ['post_type' => $types['beschluss'], 'field' => 'beschluss_status', 'kind' => 'beschluss'],
+        ['post_type' => $types['zahlung'], 'field' => 'zahlungs_status', 'kind' => 'zahlung'],
+    ] as $status_check) {
+        $post_ids = get_posts([
+            'post_type' => $status_check['post_type'],
+            'post_status' => 'any',
+            'fields' => 'ids',
+            'posts_per_page' => -1,
+        ]);
+
+        foreach ($post_ids as $post_id) {
+            $status = (string) get_post_meta((int) $post_id, $status_check['field'], true);
+            if (!in_array($status, fs_finanzportal_expected_status_values($status_check['kind']), true)) {
+                fs_finanzportal_verify_fail("Record {$post_id} has invalid {$status_check['field']} value {$status}.");
+            }
+        }
     }
 }
 

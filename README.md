@@ -19,6 +19,7 @@ runtime PHP is mounted into the running site.
 | Keycloak database | PostgreSQL 16 |
 | Content model | Pods post types generated from `wordpress/config/fachschaften.json` |
 | Access control | Fachschaft-scoped WordPress roles, capabilities, and Members page permissions |
+| Audit history | Meta Ledger post-meta history for workflow field changes |
 | Access hardening | Remove Dashboard Access and Hide Admin Bar |
 | Setup automation | Docker Compose and WP-CLI |
 | Demo content | JSON data in `wordpress/config/demo/` |
@@ -81,15 +82,31 @@ example `b_informatik` and `za_informatik`.
 
 Each Fachschaft role receives capabilities only for its own scoped post types
 and Members page permissions only for its own portal pages. AStA and auditor
-roles receive cross-Fachschaft capabilities and access to the global overview
-pages. Workflow records use published WordPress post status so Pods frontend
-lists can render them; the workflow lifecycle is stored in the dedicated status
-fields. The generated lists include search and pagination to keep the portal
+roles receive cross-Fachschaft capabilities, while the generated global
+overview pages are reserved for AStA reviewer/finance and admin roles. Those
+overview pages present one merged table per workflow type by combining
+setup-generated scoped Pods row shortcodes in the browser; this is not a shared
+runtime data model. Workflow records use published WordPress post status so Pods
+frontend lists can render them; the workflow lifecycle is stored in the dedicated status
+fields. Beschlüsse use `Entwurf`, `Genehmigt`, and `Abgelehnt`;
+Zahlungsanweisungen use `Entwurf`, `Eingereicht`, `Rückfrage`, `Stoniert`, and
+`Ausgeführt`. Zahlungsanweisungen reference a scoped Beschluss relationship
+field; Beschluss detail pages list every Zahlungsanweisung that points back to
+that Beschluss. Beschluss and Zahlungsanweisung detail pages show `Betrag
+Beschlossen` and calculate `Betrag Offen` from all related payment amounts.
+The visible workflow log uses explicit Pods fields such as `decided_at`,
+`submitted_at`, `reviewed_at`, and `executed_at`; users set these dates in the
+role-gated workflow forms. Detail pages render those fields as one
+`Workflow-Log` table at the end of each entry page. Workflow post-meta changes
+are still audited in the background by Meta Ledger. The generated
+lists use consistent client-side search, status filtering, and pagination to keep the portal
 usable as the number of Beschlüsse grows. Direct public record routes are
 disabled for the scoped post types, and the frontend pages remain protected by
 Members permissions. Item editing stays inside the portal on dedicated
 frontend edit pages that load the record ID from the query string, so the
-normal workflow never needs wp-admin.
+normal workflow never needs wp-admin. Because the project still avoids custom
+runtime PHP, exact transition hard-blocking is provided by role-gated generated
+forms and verification rather than a custom runtime state-machine hook.
 
 ## Documentation
 
@@ -97,3 +114,4 @@ normal workflow never needs wp-admin.
 - [Roles and permissions](docs/roles.md)
 - [Access management](docs/access-management.md)
 - [Frontend workflows](docs/frontend-workflows.md)
+- [Workflow process](docs/workflow-process.md)

@@ -28,6 +28,7 @@ REQUIRED_PLUGINS=(
   members
   content-control
   publishpress-statuses
+  meta-ledger
   remove-dashboard-access-for-non-admins
   hide-admin-bar-based-on-user-roles
 )

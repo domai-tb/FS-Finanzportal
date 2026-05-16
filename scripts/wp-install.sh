@@ -78,6 +78,7 @@ install_plugin pods
 install_plugin members
 install_plugin content-control
 install_plugin publishpress-statuses
+install_plugin meta-ledger
 install_plugin remove-dashboard-access-for-non-admins
 install_plugin hide-admin-bar-based-on-user-roles
 

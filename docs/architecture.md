@@ -12,6 +12,7 @@ Browser
   |     |-- MariaDB stores WordPress data
   |     |-- Pods provides configured content types, fields, forms, and lists
   |     |-- Members restricts portal pages by role
+  |     |-- Meta Ledger stores workflow post-meta audit history
   |     |-- Remove Dashboard Access blocks wp-admin for portal roles
   |     `-- OpenID Connect Generic redirects login to Keycloak
   |
@@ -55,9 +56,11 @@ Important Beschluss fields:
 | `beschlussdatum` | Date of the decision |
 | `betrag` | Amount in EUR |
 | `zweck_beschreibung` | Purpose and description |
-| `beschluss_status` | Workflow status |
+| `beschluss_status` | Workflow status: `draft`, `approved`, `rejected` |
+| `decided_at` | Date set by the user when the decision is approved or rejected |
+| `decided_by` | Person/role recorded by the user for the decision |
+| `decision_note` | Decision note |
 | `belege` | Attachments |
-| `zahlungsanweisung_ref` | Payment instruction reference |
 | `notes` | Notes and correction requests |
 
 Important Zahlungsanweisung fields:
@@ -67,10 +70,26 @@ Important Zahlungsanweisung fields:
 | `fachschaft` | Stored Fachschaft slug for reporting and imports |
 | `betrag` | Amount in EUR |
 | `verwendungszweck` | Payment purpose |
-| `zahlungs_status` | Workflow status |
+| `zahlungs_status` | Workflow status: `draft`, `submitted`, `correction_requested`, `cancelled`, `executed` |
+| `submitted_at` | Date set by the user when submitting the payment |
+| `reviewed_at` | Date set by the reviewer when checking the payment |
+| `reviewed_by` | Person/role recorded by the user for review |
+| `executed_at` | Date set by the user when marking the payment executed |
+| `executed_by` | Person/role recorded by the user for execution |
+| `workflow_note` | Workflow note for submission, review, correction, or execution |
 | `belege` | Attachments |
-| `beschluss_ref` | Beschluss reference |
+| `beschluss_ref` | Required single relationship to a scoped Beschluss |
 | `notes` | Notes and correction requests |
+
+Beschluss detail pages derive the reverse one-to-many view from this
+`beschluss_ref` relationship and list all related Zahlungsanweisungen. The
+Beschluss record itself does not store a separate payment-reference text field.
+The generated detail pages calculate the open budget in the browser from the
+rendered Pods data: `Betrag Offen = Betrag Beschlossen - Summe der zugehörigen
+Zahlungsanweisungen`.
+The visible workflow log is built from these domain fields and rendered as one
+table at the end of each detail page through named Pods templates. Meta Ledger
+remains background audit storage, not the user-facing workflow history.
 
 ## Access Decision
 
@@ -81,15 +100,27 @@ WordPress.org plugins and no runtime PHP.
 Instead, each Fachschaft has separate post types and separate WordPress roles.
 WordPress capabilities enforce isolation before a record can be listed, read,
 edited, or published. Members content permissions restrict the frontend portal
-pages so Fachschaft users cannot view other Fachschaft pages or global overview
-pages. Workflow records use published WordPress post status because Pods
+pages so Fachschaft users cannot view other Fachschaft pages or AStA overview
+pages. AStA overview pages are generated as one visible table per workflow type
+with browser-side search, status filtering, Fachschaft filtering, and
+pagination over scoped Pods row shortcodes. This keeps the physical
+post-type isolation intact and does not introduce a runtime PHP query layer.
+Workflow records use published WordPress post status because Pods
 frontend list shortcodes do not reliably render private workflow posts for
 normal portal users. Direct public record routes are disabled, and workflow
 state is tracked in the explicit status fields. The generated portal list views
-use Pods search and pagination so they stay usable without custom runtime PHP.
+render scoped Pods row shortcodes into tables and use one client-side control
+layer for search, status filtering, and pagination so Fachschaft and AStA views
+behave consistently without custom runtime PHP.
 Frontend edit pages are also generated through Pods forms and load the target
 record from a query-string item ID, so the portal never needs the native
 WordPress editor for normal workflows.
+
+The setup normalizes legacy workflow status values into the current domain
+status vocabulary. Status and other workflow field changes are recorded by the
+free WordPress.org Meta Ledger plugin as post-meta history. Without custom
+runtime PHP, transition rules are enforced by generated role-gated pages/forms,
+capabilities, and verification rather than by a custom state-machine hook.
 
 ## WordPress Plugins
 
@@ -100,6 +131,7 @@ WordPress editor for normal workflows.
 | `members` | Role/capability management and page-level content permissions |
 | `content-control` | Installed for page-level access experiments |
 | `publishpress-statuses` | Installed for workflow status expansion |
+| `meta-ledger` | Audit history for workflow post meta changes |
 | `remove-dashboard-access-for-non-admins` | Blocks `wp-admin` except for roles with finance/edit workflow access |
 | `hide-admin-bar-based-on-user-roles` | Hides the admin bar for portal roles |
 
@@ -111,8 +143,14 @@ WordPress editor for normal workflows.
 - no project-specific runtime mu-plugin is installed
 - legacy generic workflow post types are not registered
 - every configured Fachschaft has scoped Beschluss and Zahlungsanweisung types
-- Fachschaft roles cannot access other Fachschaft pages or global pages
-- global roles have the intended cross-Fachschaft access
+- Fachschaft roles cannot access other Fachschaft pages or AStA overview pages
+- AStA roles can access unified overview pages, while auditors keep scoped read access only
+- global roles have the intended cross-Fachschaft capability access
 - unknown users have no workflow capabilities
+- workflow statuses, workflow date fields, and Beschluss relationship fields
+  match the documented process
+- generated detail pages use a single `Workflow-Log` table and do not expose
+  raw Pods shortcode text
+- Meta Ledger is active and configured for all scoped workflow post types
 - generated Pods shortcodes do not use unsafe raw `orderby` SQL
 - portal pages and demo records are idempotent

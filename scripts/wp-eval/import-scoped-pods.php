@@ -96,6 +96,31 @@ function fsfp_save_pod(array $pod): void
     }
 }
 
+function fsfp_delete_pod_field(string $pod_name, string $field_name): void
+{
+    $api = $GLOBALS['fsfp_pods_api'] ?? null;
+
+    if (!$api) {
+        WP_CLI::error('Pods API is unavailable inside importer.');
+    }
+
+    $field = $api->load_field([
+        'pod' => $pod_name,
+        'name' => $field_name,
+    ]);
+
+    if (!empty($field['id'])) {
+        $deleted = $api->delete_field([
+            'id' => $field['id'],
+            'pod' => $pod_name,
+        ]);
+
+        if (is_wp_error($deleted)) {
+            WP_CLI::error($deleted->get_error_message());
+        }
+    }
+}
+
 function fsfp_text_field(string $name, string $label, bool $required = false): array
 {
     return [
@@ -113,6 +138,17 @@ function fsfp_paragraph_field(string $name, string $label): array
         'label' => $label,
         'type' => 'paragraph',
         'paragraph_allow_html' => 0,
+    ];
+}
+
+function fsfp_date_field(string $name, string $label, bool $required = false): array
+{
+    return [
+        'name' => $name,
+        'label' => $label,
+        'type' => 'date',
+        'date_format' => 'ymd_dash',
+        'required' => $required ? 1 : 0,
     ];
 }
 
@@ -157,6 +193,23 @@ function fsfp_status_field(string $name, string $label, string $values): array
         'pick_custom' => $values,
         'default_value' => 'draft',
         'required' => 1,
+    ];
+}
+
+function fsfp_beschluss_reference_field(string $beschluss_type): array
+{
+    return [
+        'name' => 'beschluss_ref',
+        'label' => 'Beschluss reference',
+        'type' => 'pick',
+        'pick_object' => 'post_type',
+        'pick_val' => $beschluss_type,
+        'pick_format_type' => 'single',
+        'pick_format_single' => 'dropdown',
+        'pick_display' => 'post_title',
+        'pick_where' => "beschluss_status.meta_value = 'approved'",
+        'required' => 1,
+        'description' => 'Nur genehmigte Beschlüsse dürfen fachlich referenziert werden.',
     ];
 }
 
@@ -259,12 +312,15 @@ foreach ($config['fachschaften'] as $fachschaft) {
         ],
         fsfp_currency_field(),
         fsfp_paragraph_field('zweck_beschreibung', 'Zweck / Beschreibung'),
-        fsfp_status_field('beschluss_status', 'Status', "draft|Entwurf\nsubmitted|Eingereicht\ncorrection_requested|Rückfrage\napproved|Genehmigt\nrejected|Abgelehnt\narchived|Archiviert"),
+        fsfp_status_field('beschluss_status', 'Status', "draft|Entwurf\napproved|Genehmigt\nrejected|Abgelehnt"),
+        fsfp_date_field('decided_at', 'Entschieden am'),
+        fsfp_text_field('decided_by', 'Entschieden durch'),
+        fsfp_paragraph_field('decision_note', 'Entscheidungshinweis'),
         fsfp_file_field(),
-        fsfp_text_field('zahlungsanweisung_ref', 'Zahlungsanweisung reference'),
         fsfp_paragraph_field('notes', 'Notizen / Rückfragen'),
     ];
     fsfp_save_pod($beschluss);
+    fsfp_delete_pod_field($beschluss_type, 'zahlungsanweisung_ref');
 
     $zahlung = fsfp_base_pod(
         $zahlung_type,
@@ -278,9 +334,15 @@ foreach ($config['fachschaften'] as $fachschaft) {
         fsfp_text_field('fachschaft', 'Fachschaft'),
         fsfp_currency_field(),
         fsfp_paragraph_field('verwendungszweck', 'Verwendungszweck'),
-        fsfp_status_field('zahlungs_status', 'Status', "draft|Entwurf\nsubmitted|Eingereicht\napproved|Genehmigt\nrejected|Abgelehnt\narchived|Archiviert"),
+        fsfp_status_field('zahlungs_status', 'Status', "draft|Entwurf\nsubmitted|Eingereicht\ncorrection_requested|Rückfrage\ncancelled|Stoniert\nexecuted|Ausgeführt"),
+        fsfp_date_field('submitted_at', 'Eingereicht am'),
+        fsfp_date_field('reviewed_at', 'Geprüft am'),
+        fsfp_text_field('reviewed_by', 'Geprüft durch'),
+        fsfp_date_field('executed_at', 'Ausgeführt am'),
+        fsfp_text_field('executed_by', 'Ausgeführt durch'),
+        fsfp_paragraph_field('workflow_note', 'Workflowhinweis'),
         fsfp_file_field(),
-        fsfp_text_field('beschluss_ref', 'Beschluss reference'),
+        fsfp_beschluss_reference_field($beschluss_type),
         fsfp_paragraph_field('notes', 'Notizen / Rückfragen'),
     ];
     fsfp_save_pod($zahlung);

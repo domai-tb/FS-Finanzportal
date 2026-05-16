@@ -6,8 +6,7 @@
     "beschlussdatum": "2026-05-02",
     "betrag": "750.00",
     "zweck_beschreibung": "Budget für Technik und Infrastruktur des Sommerfests.",
-    "status": "submitted",
-    "zahlungsanweisung_ref": "ZA-DEMO-001",
+    "status": "approved",
     "author": "demo-fachschaft"
   },
   {
@@ -18,7 +17,6 @@
     "betrag": "320.50",
     "zweck_beschreibung": "Druck- und Materialkosten für die Erstsemesterbegrüßung.",
     "status": "approved",
-    "zahlungsanweisung_ref": "ZA-DEMO-002",
     "author": "demo-asta"
   },
   {
@@ -28,8 +26,7 @@
     "beschlussdatum": "2026-04-20",
     "betrag": "185.00",
     "zweck_beschreibung": "Anschaffung von Literatur für einen studentischen Lesekreis.",
-    "status": "correction_requested",
-    "zahlungsanweisung_ref": "",
+    "status": "draft",
     "notes": "Bitte Lieferant und genaue Ausgabe ergänzen.",
     "author": "demo-philosophie"
   }

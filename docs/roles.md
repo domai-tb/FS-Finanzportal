@@ -19,9 +19,9 @@ normal low-privilege subscriber behavior and cannot read workflow records.
 | Role | Intended user | Scope | Behavior |
 |------|---------------|-------|----------|
 | `portal_admin` | System administrator | All data and settings | Full WordPress administration and all workflow records |
-| `asta_finance` | AStA finance officer | All Fachschaften | Read, create, edit, publish, upload, and archive by status |
-| `asta_reviewer` | AStA reviewer | All Fachschaften | Read and edit workflow records |
-| `auditor` | Auditor | All Fachschaften | Read-only workflow access |
+| `asta_finance` | AStA finance officer | All Fachschaften | Reads Beschlüsse and reviews Zahlungsanweisungen across Fachschaften |
+| `asta_reviewer` | AStA FSR Buchhaltung | All Fachschaften | Reviews Zahlungsanweisungen, can request clarification, and marks payments as executed |
+| `auditor` | Auditor | All Fachschaften | Read-only scoped workflow access without AStA overview pages |
 | `fs_<slug>_finance` | Fachschaft finance officer | One Fachschaft | Read, create, edit, publish, upload, and archive by status for one Fachschaft |
 | `fs_<slug>_reader` | Fachschaft member | One Fachschaft | Read-only access for one Fachschaft |
 | `fs_portal_empty` | Authenticated user without assignment | None | Login only, no workflow record access |
@@ -52,15 +52,29 @@ Finance roles receive the reader capabilities plus:
 - `publish_<scoped_records>`
 - `upload_files`
 
-Normal workflow users do not receive delete capabilities. Archiving is modeled
-through the workflow status value `archived`, preserving audit history.
+AStA finance and reviewer roles receive read capabilities for scoped Beschlüsse
+but write capabilities only for scoped Zahlungsanweisungen. They cannot modify
+Beschlüsse through the generated portal workflow. WordPress administrators and
+`portal_admin` keep full setup/admin access.
+
+The global overview pages under `/dashboard/beschluesse/` and
+`/dashboard/zahlungsanweisungen/` are AStA/admin work queues. They combine
+scoped Pods row shortcodes into one browser-side table with search, status,
+Fachschaft filters, and pagination. Auditors retain read capabilities on scoped
+Fachschaft pages but are not granted those AStA overview pages.
+
+Normal workflow users do not receive delete capabilities. Workflow completion,
+clarification, and cancellation are modeled through status values and explicit
+workflow fields that are rendered as a `Workflow-Log` on detail pages. Meta
+Ledger still records post-meta changes in the background for administrative
+audit; see `docs/workflow-process.md`.
 
 ## Admin Boundary
 
 Readers, auditors, and unassigned users are blocked from `wp-admin` and
 redirected to `/dashboard/`. Finance/editor workflow roles receive
-`fsfp_use_wp_admin` so the role-gated edit action can open WordPress' native
-editor for their scoped post types. The admin bar is hidden for portal roles.
+`fsfp_use_wp_admin` for plugin compatibility, but normal workflow editing uses
+the generated frontend Pods forms. The admin bar is hidden for portal roles.
 WordPress administrators and `portal_admin` retain backend access.
 
 ## Demo Users

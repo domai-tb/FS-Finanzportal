@@ -32,13 +32,25 @@ Members content permissions are enabled during setup. Every generated workflow
 page receives `_members_access_role` metadata:
 
 - Fachschaft pages allow only the matching `fs_<slug>_reader`,
-  `fs_<slug>_finance`, and global AStA/auditor/admin roles.
-- Creation and edit pages allow only `fs_<slug>_finance` and global roles.
-- Global overview pages allow only AStA, auditor, and admin roles.
+  `fs_<slug>_finance`, auditors, and admin roles. AStA users use the unified
+  overview pages instead of Fachschaft-specific list pages.
+- Beschluss creation and edit pages allow only `fs_<slug>_finance`,
+  administrators, and `portal_admin`.
+- Zahlungsanweisung creation pages allow only `fs_<slug>_finance`,
+  administrators, and `portal_admin`; Zahlungsanweisung workflow edit pages also
+  allow AStA finance/reviewer roles.
+- Global overview pages allow only AStA finance/reviewer and admin roles.
+  Auditors keep cross-Fachschaft read capabilities, but they do not see the
+  unified AStA overview pages.
 
 The portal menu intentionally contains only Dashboard and Logout. Dashboard
 links are wrapped in Members shortcodes so each user sees only the areas they
-are allowed to access.
+are allowed to access. The generated block header navigation also adds plain
+theme-styled `Beschlüsse` and `Zahlungsanweisungen` links. They are resolved in
+the browser from the current dashboard context: AStA pages point to the two
+unified tables, while Fachschaft pages point inside the current Fachschaft area.
+The classic menu fallback stays minimal because it cannot hide individual links
+by role without custom runtime PHP.
 
 ## Redirects
 
@@ -48,10 +60,11 @@ Normal portal users:
 - do not see the WordPress admin bar
 - use frontend portal pages for viewing and creating workflow records
 
-Finance/editor workflow roles receive the `fsfp_use_wp_admin` capability so the
-“Bearbeiten” action can use WordPress' native scoped editor for the matching
-post type. Readers, auditors, and unassigned users are redirected away from
-`wp-admin`. Administrators and `portal_admin` retain backend access.
+Finance/editor workflow roles receive the `fsfp_use_wp_admin` capability only
+where needed for plugin-admin compatibility, but the generated portal workflow
+uses frontend Pods forms rather than WordPress' native editor. Readers,
+auditors, and unassigned users are redirected away from `wp-admin`.
+Administrators and `portal_admin` retain backend access.
 
 ## Known Limit
 
