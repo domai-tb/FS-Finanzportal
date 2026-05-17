@@ -562,6 +562,26 @@ function fsfp_cli_status_select_options(string $kind): string
     return $status_select;
 }
 
+function fsfp_cli_return_to_url(string $url): string
+{
+    return rawurlencode($url);
+}
+
+function fsfp_cli_contextual_back_link_script(string $default_url): string
+{
+    return '<script>(function(){'
+        . 'var link=document.querySelector("[data-fsfp-back-link]");'
+        . 'if(!link){return;}'
+        . 'var fallback="' . esc_js($default_url) . '";'
+        . 'function pathParts(path){return (path||"").split("/").filter(Boolean);}'
+        . 'function isListPath(path){var parts=pathParts(path);if(parts.length===2&&parts[0]==="dashboard"&&(parts[1]==="beschluesse"||parts[1]==="zahlungsanweisungen")){return true;}return parts.length===3&&parts[0]==="dashboard"&&(parts[2]==="beschluesse"||parts[2]==="zahlungsanweisungen");}'
+        . 'function safeUrl(value){if(!value){return "";}try{var url=new URL(value,window.location.origin);if(url.origin!==window.location.origin||!isListPath(url.pathname)){return "";}return url.pathname+url.search+url.hash;}catch(e){return "";}}'
+        . 'var params=new URLSearchParams(window.location.search);'
+        . 'var target=safeUrl(params.get("return_to"))||safeUrl(document.referrer)||fallback;'
+        . 'link.setAttribute("href",target);'
+        . '})();</script>';
+}
+
 function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachschaft_slug, bool $include_edit_link = false, bool $hide_drafts = false, string $edit_label = 'Bearbeiten'): string
 {
     $date_th = $kind === 'beschluss' ? '<th>Datum</th>' : '';
@@ -570,10 +590,12 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
     $detail_slug = $kind === 'beschluss' ? 'beschluss-details' : 'zahlungsanweisung-details';
     $edit_slug = $kind === 'beschluss' ? 'beschluss-bearbeiten' : 'zahlungsanweisung-bearbeiten';
     $base_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/';
+    $list_url = $base_url . ($kind === 'beschluss' ? 'beschluesse/' : 'zahlungsanweisungen/');
+    $return_to = fsfp_cli_return_to_url($list_url);
 
-    $actions = '<a href="' . $base_url . $detail_slug . '/?id={@ID}">Details</a>';
+    $actions = '<a href="' . $base_url . $detail_slug . '/?id={@ID}&return_to=' . esc_attr($return_to) . '">Details</a>';
     if ($include_edit_link) {
-        $edit_action = ' | <a href="' . $base_url . $edit_slug . '/?id={@ID}">' . esc_html($edit_label) . '</a>';
+        $edit_action = ' | <a href="' . $base_url . $edit_slug . '/?id={@ID}&return_to=' . esc_attr($return_to) . '">' . esc_html($edit_label) . '</a>';
         if ($kind === 'zahlung') {
             $actions .= '[if field="zahlungs_status" value="executed" compare="NOT IN"]' . $edit_action . '[/if]';
         } else {
@@ -653,10 +675,12 @@ function fsfp_cli_unified_overview_source(string $post_type, string $kind, strin
     $edit_slug = $kind === 'beschluss' ? '' : 'zahlungsanweisung-bearbeiten';
     $date_td = $kind === 'beschluss' ? '<td>{@beschlussdatum}</td>' : '';
     $base_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/';
+    $list_url = $kind === 'beschluss' ? '/dashboard/beschluesse/' : '/dashboard/zahlungsanweisungen/';
+    $return_to = fsfp_cli_return_to_url($list_url);
 
-    $actions = '<a href="' . $base_url . $detail_slug . '/?id={@ID}">Details</a>';
+    $actions = '<a href="' . $base_url . $detail_slug . '/?id={@ID}&return_to=' . esc_attr($return_to) . '">Details</a>';
     if ($kind === 'zahlung') {
-        $review_action = ' | <a href="' . $base_url . $edit_slug . '/?id={@ID}">Rückfrage / Ausgeführt</a>';
+        $review_action = ' | <a href="' . $base_url . $edit_slug . '/?id={@ID}&return_to=' . esc_attr($return_to) . '">Rückfrage / Ausgeführt</a>';
         $actions .= '[if field="zahlungs_status" value="executed" compare="NOT IN"]' . $review_action . '[/if]';
     }
 
@@ -880,7 +904,8 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
         . $related_markup
         . '<!-- wp:html -->' . fsfp_cli_budget_script() . '<!-- /wp:html -->' . "\n"
         . fsfp_cli_workflow_metadata_markup($post_type, $kind)
-        . '<!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->' . "\n"
+        . '<!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->' . "\n"
+        . fsfp_cli_contextual_back_link_script($list_url)
         . '</div><!-- /wp:group -->';
 }
 
@@ -933,14 +958,18 @@ function fsfp_cli_form_shortcode(string $post_type, string $fields, string $redi
 
 function fsfp_cli_edit_form_page(string $post_type, string $fields, string $list_url): string
 {
-    return '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Bearbeiten-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph --><div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Bearbeiten-Link in der Liste.</p><!-- /wp:paragraph --></div><div class="fsfp-edit-page__form" hidden>'
+    return '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Bearbeiten-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
+        . fsfp_cli_contextual_back_link_script($list_url)
+        . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Bearbeiten-Link in der Liste.</p><!-- /wp:paragraph --></div><div class="fsfp-edit-page__form" hidden>'
         . '[pods name="' . esc_attr($post_type) . '" form="true" slug="{@get.id}" fields="' . esc_attr($fields) . '" thank_you="' . esc_url($list_url) . '" label="Änderungen speichern"]'
         . '</div><script>(function(){var params=new URLSearchParams(window.location.search);var id=params.get("id");var form=document.querySelector(".fsfp-edit-page__form");var notice=document.querySelector(".fsfp-edit-page__notice");if(!form||!notice){return;}if(id&&id.length){form.hidden=false;notice.hidden=true;}else{form.hidden=true;notice.hidden=false;}})();</script></div><!-- /wp:group -->';
 }
 
 function fsfp_cli_role_gated_edit_form_page(string $post_type, array $forms, string $list_url): string
 {
-    $content = '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Workflow-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph --><div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Link in der Liste.</p><!-- /wp:paragraph --></div>';
+    $content = '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Workflow-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
+        . fsfp_cli_contextual_back_link_script($list_url)
+        . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Link in der Liste.</p><!-- /wp:paragraph --></div>';
 
     foreach ($forms as $form) {
         $content .= fsfp_cli_members_access_block(

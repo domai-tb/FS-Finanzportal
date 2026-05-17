@@ -78,6 +78,18 @@ else
     -s bruteForceProtected=true >/dev/null
 fi
 
+# Ensure the realm uses the custom login theme if available
+echo "==> Setting realm login theme to 'asta-finance' (if available)..."
+# Wait for theme folder to be present inside the Keycloak container to avoid timing issues
+for i in 1 2 3 4 5; do
+  if docker compose exec -T keycloak test -d /opt/keycloak/themes/asta-finance 2>/dev/null; then
+    kc update "realms/${KC_REALM}" -s "loginTheme=asta-finance" >/dev/null
+    break
+  fi
+  echo "    Waiting for theme mount to appear inside Keycloak container (attempt $i)..."
+  sleep 2
+done
+
 ensure_realm_role() {
   local role="$1"
   local description="$2"

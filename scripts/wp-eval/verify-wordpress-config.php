@@ -636,6 +636,20 @@ foreach ($global_pages as $global_page) {
     }
 }
 
+$global_beschluss_rows_template = get_page_by_path('fsfp-global-b_informatik-beschluss-rows', OBJECT, '_pods_template');
+if (!$global_beschluss_rows_template
+    || !str_contains($global_beschluss_rows_template->post_content, 'return_to=%2Fdashboard%2Fbeschluesse%2F')
+) {
+    fs_finanzportal_verify_fail('Global Beschluss overview row links must preserve the unified overview as return target.');
+}
+
+$global_zahlung_rows_template = get_page_by_path('fsfp-global-za_informatik-zahlung-rows', OBJECT, '_pods_template');
+if (!$global_zahlung_rows_template
+    || !str_contains($global_zahlung_rows_template->post_content, 'return_to=%2Fdashboard%2Fzahlungsanweisungen%2F')
+) {
+    fs_finanzportal_verify_fail('Global payment overview row links must preserve the unified overview as return target.');
+}
+
 fs_finanzportal_verify_user_can_view('demo-informatik-reader', $restricted_pages_by_fachschaft['informatik'][0]);
 fs_finanzportal_verify_user_cannot_view('demo-informatik-reader', $restricted_pages_by_fachschaft['maschinenbau'][0]);
 fs_finanzportal_verify_user_cannot_view('demo-informatik-reader', $restricted_pages_by_fachschaft['philosophie'][0]);
@@ -746,6 +760,7 @@ if (!str_contains($informatik_finance_content, 'Demo: Technik-Budget Sommerfest'
 }
 if (str_contains($informatik_finance_content, 'wp-admin')
     || !str_contains($informatik_finance_content, '/dashboard/informatik/beschluss-bearbeiten/?id=')
+    || !str_contains($informatik_finance_content, 'return_to=%2Fdashboard%2Finformatik%2Fbeschluesse%2F')
     || !str_contains($informatik_finance_content, 'Neu erstellen')
     || !str_contains($informatik_finance_content, 'Bearbeiten')
 ) {
@@ -776,10 +791,14 @@ if (!str_contains($informatik_beschluss_detail_page->post_content, 'Zugehörige 
 }
 if (!str_contains($informatik_beschluss_detail_page->post_content, 'Workflow-Log')
     || !str_contains($informatik_beschluss_detail_page->post_content, 'template="fsfp-b_informatik-workflow-log"')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'data-fsfp-back-link')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'params.get("return_to")')
+    || !str_contains($informatik_beschluss_detail_page->post_content, 'function pathParts(path){return (path||"").split("/")')
+    || str_contains($informatik_beschluss_detail_page->post_content, 'path.replace(/^/+|/+$/g')
     || str_contains($informatik_beschluss_detail_page->post_content, '[pods name="b_informatik" slug="{@get.id}"]<table')
     || str_contains($informatik_beschluss_detail_page->post_content, 'Meta Ledger protokolliert')
 ) {
-    fs_finanzportal_verify_fail('Beschluss detail page must show a unified domain workflow log instead of static audit text.');
+    fs_finanzportal_verify_fail('Beschluss detail page must show a unified domain workflow log and contextual back link instead of static audit text.');
 }
 
 $beschluss_workflow_template = get_page_by_path('fsfp-b_informatik-workflow-log', OBJECT, '_pods_template');
@@ -804,10 +823,14 @@ if (!$related_zahlung_template
 $informatik_zahlungen_detail_page = $restricted_pages_by_fachschaft['informatik'][6];
 if (!str_contains($informatik_zahlungen_detail_page->post_content, 'Workflow-Log')
     || !str_contains($informatik_zahlungen_detail_page->post_content, 'template="fsfp-za_informatik-workflow-log"')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'data-fsfp-back-link')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'params.get("return_to")')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'function pathParts(path){return (path||"").split("/")')
+    || str_contains($informatik_zahlungen_detail_page->post_content, 'path.replace(/^/+|/+$/g')
     || str_contains($informatik_zahlungen_detail_page->post_content, '[pods name="za_informatik" slug="{@get.id}"]<table')
     || str_contains($informatik_zahlungen_detail_page->post_content, 'Meta Ledger protokolliert')
 ) {
-    fs_finanzportal_verify_fail('Payment detail page must show a unified domain workflow log instead of static audit text.');
+    fs_finanzportal_verify_fail('Payment detail page must show a unified domain workflow log and contextual back link instead of static audit text.');
 }
 
 $zahlung_workflow_template = get_page_by_path('fsfp-za_informatik-workflow-log', OBJECT, '_pods_template');

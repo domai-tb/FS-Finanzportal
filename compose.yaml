@@ -133,6 +133,8 @@ services:
     volumes:
       # Import realm on first start
       - ./keycloak/realms:/opt/keycloak/data/import:ro
+      # Mount local Keycloak themes so themes (e.g., asta-finance) are available automatically
+      - ./keycloak/themes:/opt/keycloak/themes:ro
     command: ["start-dev", "--import-realm"]
     healthcheck:
       # The official Keycloak image does not include curl. Check that the
