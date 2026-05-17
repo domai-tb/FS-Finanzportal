@@ -131,13 +131,14 @@ function fsfp_text_field(string $name, string $label, bool $required = false): a
     ];
 }
 
-function fsfp_paragraph_field(string $name, string $label): array
+function fsfp_paragraph_field(string $name, string $label, bool $required = false): array
 {
     return [
         'name' => $name,
         'label' => $label,
         'type' => 'paragraph',
         'paragraph_allow_html' => 0,
+        'required' => $required ? 1 : 0,
     ];
 }
 
@@ -311,7 +312,7 @@ foreach ($config['fachschaften'] as $fachschaft) {
             'required' => 1,
         ],
         fsfp_currency_field(),
-        fsfp_paragraph_field('zweck_beschreibung', 'Zweck / Beschreibung'),
+        fsfp_paragraph_field('zweck_beschreibung', 'Zweck / Beschreibung', true),
         fsfp_status_field('beschluss_status', 'Status', "draft|Entwurf\napproved|Genehmigt\nrejected|Abgelehnt"),
         fsfp_date_field('decided_at', 'Entschieden am'),
         fsfp_text_field('decided_by', 'Entschieden durch'),
@@ -333,7 +334,7 @@ foreach ($config['fachschaften'] as $fachschaft) {
     $zahlung['fields'] = [
         fsfp_text_field('fachschaft', 'Fachschaft'),
         fsfp_currency_field(),
-        fsfp_paragraph_field('verwendungszweck', 'Verwendungszweck'),
+        fsfp_paragraph_field('verwendungszweck', 'Verwendungszweck', true),
         fsfp_status_field('zahlungs_status', 'Status', "draft|Entwurf\nsubmitted|Eingereicht\ncorrection_requested|Rückfrage\ncancelled|Stoniert\nexecuted|Ausgeführt"),
         fsfp_date_field('submitted_at', 'Eingereicht am'),
         fsfp_date_field('reviewed_at', 'Geprüft am'),

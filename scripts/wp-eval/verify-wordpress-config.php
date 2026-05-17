@@ -309,6 +309,12 @@ foreach ($fachschaften as $fachschaft) {
                 fs_finanzportal_verify_fail("Pods field {$field_name} on {$post_type} must be a date field.");
             }
 
+            if (in_array($field_name, ['beschlussdatum', 'betrag', 'zweck_beschreibung', 'verwendungszweck'], true)
+                && (int) ($field['required'] ?? 0) !== 1
+            ) {
+                fs_finanzportal_verify_fail("Pods field {$field_name} on {$post_type} must be required.");
+            }
+
             if ($field_name === 'beschluss_status' || $field_name === 'zahlungs_status') {
                 $actual_values = fs_finanzportal_pick_values($field);
                 $expected_values = fs_finanzportal_expected_status_values($kind);
@@ -742,8 +748,26 @@ $informatik_beschluss_edit_page = $restricted_pages_by_fachschaft['informatik'][
 if (!str_contains($informatik_beschluss_edit_page->post_content, 'decided_at')
     || !str_contains($informatik_beschluss_edit_page->post_content, 'decided_by')
     || !str_contains($informatik_beschluss_edit_page->post_content, 'decision_note')
+    || !str_contains($informatik_beschluss_edit_page->post_content, '_pods_location')
+    || !str_contains($informatik_beschluss_edit_page->post_content, 'form.dataset.location=absolute')
 ) {
     fs_finanzportal_verify_fail('Beschluss workflow form must expose decision date, actor, and note fields.');
+}
+
+$informatik_beschluss_create_page = $restricted_pages_by_fachschaft['informatik'][3];
+if (!str_contains($informatik_beschluss_create_page->post_content, 'fsfp-form-page--beschluss')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'fsfp-form-shell')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'Beschluss erfassen')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'data-form-errors')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'Der Betrag muss größer als 0 sein.')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'Das Beschlussdatum darf nicht in der Zukunft liegen.')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'pods_field_${name}')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'fsfpSanityBound')
+    || !str_contains($informatik_beschluss_create_page->post_content, '[250,750,1500,3000]')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'stopImmediatePropagation')
+    || !str_contains($informatik_beschluss_create_page->post_content, 'fsfp-field-invalid')
+) {
+    fs_finanzportal_verify_fail('Beschluss create page must use the styled form shell and basic sanity checks.');
 }
 
 $informatik_reader_content = fs_finanzportal_render_page_as_user('demo-informatik-reader', $informatik_beschluesse_page);
@@ -860,10 +884,42 @@ if (!str_contains($informatik_zahlungen_detail_page->post_content, '/dashboard/i
 
 $zahlung_budget_template = get_page_by_path('fsfp-za_informatik-budget-source', OBJECT, '_pods_template');
 if (!$zahlung_budget_template
+    || !str_contains($zahlung_budget_template->post_content, 'data-payment-id="{@ID}"')
     || !str_contains($zahlung_budget_template->post_content, 'data-beschluss-id="{@beschluss_ref.ID}"')
     || !str_contains($zahlung_budget_template->post_content, 'data-payment-amount="{@betrag}"')
 ) {
     fs_finanzportal_verify_fail('Payment detail page must have a budget source template for related Zahlungsanweisungen.');
+}
+
+$beschluss_budget_template = get_page_by_path('fsfp-b_informatik-budget-source', OBJECT, '_pods_template');
+if (!$beschluss_budget_template
+    || !str_contains($beschluss_budget_template->post_content, 'fsfp-beschluss-budget-row')
+    || !str_contains($beschluss_budget_template->post_content, 'data-beschluss-id="{@ID}"')
+    || !str_contains($beschluss_budget_template->post_content, 'data-budget-amount="{@betrag}"')
+) {
+    fs_finanzportal_verify_fail('Payment forms must have a Beschluss budget source template.');
+}
+
+$informatik_zahlung_create_page = $restricted_pages_by_fachschaft['informatik'][7];
+if (!str_contains($informatik_zahlung_create_page->post_content, 'fsfp-payment-form-scope')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-form-page--zahlung')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-form-shell')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'Zahlungsanweisung vorbereiten')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-payment-budget-guard')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-beschluss-budget-source')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-budget-source')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'data-form-errors')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'Bitte wähle einen genehmigten Beschluss aus.')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'pods_field_${name}')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'fsfpSanityBound')
+    || !str_contains($informatik_zahlung_create_page->post_content, '[250,750,1500,3000]')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'stopImmediatePropagation')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'data-budget-warning')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'Der Betrag überschreitet das offene Budget')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'submit.disabled=true')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'where="beschluss_status.meta_value = \'approved\'"')
+) {
+    fs_finanzportal_verify_fail('Payment create page must include the frontend budget guard and approved Beschluss budget source.');
 }
 
 $zahlung_edit_template = get_page_by_path('fsfp-za_informatik-bearbeiteneinreichenstornieren-all', OBJECT, '_pods_template');
@@ -879,6 +935,13 @@ if (!str_contains($informatik_zahlung_edit_page->post_content, 'submitted_at')
 ) {
     fs_finanzportal_verify_fail('Payment workflow forms must expose workflow date and note fields.');
 }
+if (!str_contains($informatik_zahlung_edit_page->post_content, 'fsfp-payment-budget-guard')
+    || !str_contains($informatik_zahlung_edit_page->post_content, 'row.dataset.paymentId===currentId')
+    || !str_contains($informatik_zahlung_edit_page->post_content, '_pods_location')
+    || !str_contains($informatik_zahlung_edit_page->post_content, 'form.dataset.location=absolute')
+) {
+    fs_finanzportal_verify_fail('Payment edit page must include the frontend budget guard, exclude the current payment from spent budget, and honor contextual return targets.');
+}
 
 $informatik_zahlungen_auditor_content = fs_finanzportal_render_page_as_user('demo-auditor', $informatik_zahlungen_page);
 if (str_contains($informatik_zahlungen_auditor_content, 'Neu erstellen')
@@ -886,6 +949,15 @@ if (str_contains($informatik_zahlungen_auditor_content, 'Neu erstellen')
     || str_contains($informatik_zahlungen_auditor_content, 'Rückfrage / Ausgeführt')
 ) {
     fs_finanzportal_verify_fail('Auditor must not see payment create/edit/action controls.');
+}
+
+$custom_css = function_exists('wp_get_custom_css') ? wp_get_custom_css() : '';
+if (!str_contains($custom_css, '.fsfp-form-shell')
+    || !str_contains($custom_css, '.fsfp-form-page input[type=text]')
+    || !str_contains($custom_css, '.fsfp-form-errors')
+    || !str_contains($custom_css, '.fsfp-field-invalid')
+) {
+    fs_finanzportal_verify_fail('Portal custom CSS must style generated workflow forms and validation states.');
 }
 
 wp_set_current_user(0);

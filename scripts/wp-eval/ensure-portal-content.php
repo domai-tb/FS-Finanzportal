@@ -582,6 +582,21 @@ function fsfp_cli_contextual_back_link_script(string $default_url): string
         . '})();</script>';
 }
 
+function fsfp_cli_contextual_form_redirect_script(string $default_url): string
+{
+    return '<script>(function(){'
+        . 'var fallback="' . esc_js($default_url) . '";'
+        . 'function pathParts(path){return (path||"").split("/").filter(Boolean);}'
+        . 'function isListPath(path){var parts=pathParts(path);if(parts.length===2&&parts[0]==="dashboard"&&(parts[1]==="beschluesse"||parts[1]==="zahlungsanweisungen")){return true;}return parts.length===3&&parts[0]==="dashboard"&&(parts[2]==="beschluesse"||parts[2]==="zahlungsanweisungen");}'
+        . 'function safeUrl(value){if(!value){return "";}try{var url=new URL(value,window.location.origin);if(url.origin!==window.location.origin||!isListPath(url.pathname)){return "";}return url.pathname+url.search+url.hash;}catch(e){return "";}}'
+        . 'var params=new URLSearchParams(window.location.search);'
+        . 'var target=safeUrl(params.get("return_to"))||fallback;'
+        . 'var absolute=new URL(target,window.location.origin).href;'
+        . 'function applyRedirect(){document.querySelectorAll(".fsfp-edit-page form.pods-form").forEach(function(form){form.dataset.location=absolute;form.setAttribute("data-location",absolute);var location=form.querySelector("[name=\\"_pods_location\\"]");if(location){location.value=absolute;}});}'
+        . 'applyRedirect();[250,750,1500].forEach(function(delay){setTimeout(applyRedirect,delay);});'
+        . '})();</script>';
+}
+
 function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachschaft_slug, bool $include_edit_link = false, bool $hide_drafts = false, string $edit_label = 'Bearbeiten'): string
 {
     $date_th = $kind === 'beschluss' ? '<th>Datum</th>' : '';
@@ -796,12 +811,29 @@ function fsfp_cli_budget_source_shortcode(string $zahlung_post_type): string
     fsfp_cli_upsert_pods_template(
         $template_slug,
         $template_slug,
-        '<span class="fsfp-budget-source-row" data-beschluss-id="{@beschluss_ref.ID}" data-payment-amount="{@betrag}"></span>' . "\n"
+        '<span class="fsfp-budget-source-row" data-payment-id="{@ID}" data-beschluss-id="{@beschluss_ref.ID}" data-payment-amount="{@betrag}"></span>' . "\n"
     );
 
     return '<div class="fsfp-budget-source" hidden>' . "\n"
         . '<!-- wp:shortcode -->' . "\n"
         . '[pods name="' . esc_attr($zahlung_post_type) . '" template="' . esc_attr($template_slug) . '" expires="-1" limit="-1"]' . "\n"
+        . '<!-- /wp:shortcode -->' . "\n"
+        . '</div>' . "\n";
+}
+
+function fsfp_cli_beschluss_budget_source_shortcode(string $beschluss_post_type): string
+{
+    $template_slug = sanitize_key("fsfp-{$beschluss_post_type}-budget-source");
+
+    fsfp_cli_upsert_pods_template(
+        $template_slug,
+        $template_slug,
+        '<span class="fsfp-beschluss-budget-row" data-beschluss-id="{@ID}" data-budget-amount="{@betrag}"></span>' . "\n"
+    );
+
+    return '<div class="fsfp-beschluss-budget-source" hidden>' . "\n"
+        . '<!-- wp:shortcode -->' . "\n"
+        . '[pods name="' . esc_attr($beschluss_post_type) . '" template="' . esc_attr($template_slug) . '" where="beschluss_status.meta_value = \'approved\'" expires="-1" limit="-1"]' . "\n"
         . '<!-- /wp:shortcode -->' . "\n"
         . '</div>' . "\n";
 }
@@ -819,6 +851,29 @@ function fsfp_cli_budget_script(): string
         . 'if(paidEl){paidEl.textContent=formatAmount(paid);}'
         . 'openEl.textContent=formatAmount(budget-paid);'
         . '})();</script>';
+}
+
+function fsfp_cli_payment_budget_guard(string $beschluss_post_type, string $zahlung_post_type): string
+{
+    return '<div class="fsfp-payment-budget-guard">'
+        . fsfp_cli_beschluss_budget_source_shortcode($beschluss_post_type)
+        . fsfp_cli_budget_source_shortcode($zahlung_post_type)
+        . '<p class="fsfp-budget-warning" data-budget-warning hidden></p>'
+        . '<script>(function(){'
+        . 'var root=document.currentScript.closest(".fsfp-payment-form-scope");if(!root){return;}'
+        . 'function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}'
+        . 'function formatAmount(value){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(value);}'
+        . 'var budgets={};root.querySelectorAll(".fsfp-beschluss-budget-row").forEach(function(row){budgets[row.dataset.beschlussId]=parseAmount(row.dataset.budgetAmount||row.textContent);});'
+        . 'var params=new URLSearchParams(window.location.search);var currentId=params.get("id")||"";'
+        . 'var spent={};root.querySelectorAll(".fsfp-budget-source-row").forEach(function(row){var id=row.dataset.beschlussId||"";if(!id||row.dataset.paymentId===currentId){return;}spent[id]=(spent[id]||0)+parseAmount(row.dataset.paymentAmount||row.textContent);});'
+        . 'function field(name){return root.querySelector(`[name="${name}"],[name="pods_field_${name}"],[name$="[${name}]"],[id$="-${name}"],[id$="-pods-field-${name.replace(/_/g,"-")}"],[id$="_${name}"]`);}'
+        . 'function bind(){var amount=field("betrag");var beschluss=field("beschluss_ref");var warning=root.querySelector("[data-budget-warning]");var submit=root.querySelector("button[type=submit],input[type=submit]");if(!amount||!beschluss||!warning||!submit){return false;}if(amount.dataset.fsfpBudgetBound==="1"){return true;}amount.dataset.fsfpBudgetBound="1";'
+        . 'function selectedBeschluss(){var value=beschluss.value||"";if(value){return value;}var option=beschluss.options&&beschluss.selectedIndex>=0?beschluss.options[beschluss.selectedIndex]:null;return option?option.value:"";}'
+        . 'function validate(){var id=selectedBeschluss();var requested=parseAmount(amount.value);var budget=budgets[id]||0;var used=spent[id]||0;var open=budget-used;var over=id&&requested>open+0.005;if(over){warning.hidden=false;warning.textContent="Der Betrag überschreitet das offene Budget dieses Beschlusses ("+formatAmount(open)+" verfügbar).";submit.disabled=true;}else{warning.hidden=true;warning.textContent="";submit.disabled=false;}}'
+        . 'amount.addEventListener("input",validate);beschluss.addEventListener("change",validate);validate();return true;}'
+        . 'if(!bind()){var observer=new MutationObserver(function(){if(bind()){observer.disconnect();}});observer.observe(root,{childList:true,subtree:true});setTimeout(bind,500);setTimeout(bind,1500);}'
+        . '})();</script>'
+        . '</div>';
 }
 
 function fsfp_cli_workflow_metadata_markup(string $post_type, string $kind): string
@@ -956,27 +1011,78 @@ function fsfp_cli_form_shortcode(string $post_type, string $fields, string $redi
         . '<!-- /wp:html -->';
 }
 
+function fsfp_cli_form_sanity_guard(string $kind): string
+{
+    $rules = $kind === 'beschluss'
+        ? [
+            'post_title' => 'Bitte gib einen Titel an.',
+            'betrag' => 'Der Betrag muss größer als 0 sein.',
+            'beschlussdatum' => 'Das Beschlussdatum darf nicht in der Zukunft liegen.',
+            'zweck_beschreibung' => 'Bitte beschreibe den Zweck etwas genauer.',
+        ]
+        : [
+            'post_title' => 'Bitte gib einen Titel an.',
+            'betrag' => 'Der Betrag muss größer als 0 sein.',
+            'verwendungszweck' => 'Bitte beschreibe den Verwendungszweck etwas genauer.',
+            'beschluss_ref' => 'Bitte wähle einen genehmigten Beschluss aus.',
+        ];
+
+    return '<div class="fsfp-form-errors" data-form-errors hidden></div>'
+        . '<script>(function(){'
+        . 'var root=document.currentScript.closest(".fsfp-form-page,.fsfp-payment-form-scope");if(!root){return;}'
+        . 'var messages=' . wp_json_encode($rules, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ';'
+        . 'function field(name){return root.querySelector(`[name="${name}"],[name="pods_field_${name}"],[name$="[${name}]"],[id$="-${name}"],[id$="-pods-field-${name.replace(/_/g,"-")}"],[id$="_${name}"]`);}'
+        . 'function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}'
+        . 'function textValue(el){return el?(el.value||"").trim():"";}'
+        . 'function isFutureDate(value){if(!value){return false;}var date=new Date(value+"T00:00:00");if(Number.isNaN(date.getTime())){return false;}var today=new Date();today.setHours(0,0,0,0);return date>today;}'
+        . 'function setInvalid(el,invalid){if(!el){return;}el.classList.toggle("fsfp-field-invalid",invalid);}'
+        . 'function validate(show){var errors=[];Object.keys(messages).forEach(function(name){var el=field(name);var invalid=false;if(name==="betrag"){invalid=parseAmount(textValue(el))<=0;}else if(name==="beschlussdatum"){invalid=!textValue(el)||isFutureDate(textValue(el));}else if(name==="post_title"){invalid=textValue(el).length<3;}else if(name==="zweck_beschreibung"||name==="verwendungszweck"){invalid=textValue(el).length<10;}else if(name==="beschluss_ref"){invalid=!textValue(el);}setInvalid(el,invalid);if(invalid){errors.push(messages[name]);}});var box=root.querySelector("[data-form-errors]");if(box){box.hidden=errors.length===0;box.innerHTML=errors.map(function(error){return "<p>"+error+"</p>";}).join("");}return errors.length===0;}'
+        . 'root.addEventListener("input",function(){validate(false);});root.addEventListener("change",function(){validate(false);});'
+        . 'function enhanceFields(){Object.keys(messages).forEach(function(name){var el=field(name);if(!el||el.dataset.fsfpSanityBound==="1"){return;}el.dataset.fsfpSanityBound="1";el.required=true;if(name==="betrag"){el.setAttribute("min","0.01");}if(name==="post_title"){el.setAttribute("minlength","3");}if(name==="zweck_beschreibung"||name==="verwendungszweck"){el.setAttribute("minlength","10");}});validate(false);}'
+        . 'var form=root.querySelector("form");if(form){form.addEventListener("submit",function(event){enhanceFields();if(!validate(true)){event.preventDefault();event.stopImmediatePropagation();}},true);}'
+        . 'enhanceFields();[250,750,1500,3000].forEach(function(delay){setTimeout(enhanceFields,delay);});'
+        . '})();</script>';
+}
+
+function fsfp_cli_form_page(string $kind, string $post_type, string $fields, string $redirect, string $title, string $after = ''): string
+{
+    $payment_scope = $kind === 'zahlung' ? ' fsfp-payment-form-scope' : '';
+
+    return '<!-- wp:group --><div class="wp-block-group fsfp-form-page fsfp-form-page--' . esc_attr($kind) . $payment_scope . '">'
+        . '<div class="fsfp-form-shell">'
+        . '<div class="fsfp-form-header"><h2>' . esc_html($title) . '</h2></div>'
+        . '<div class="fsfp-form-body">'
+        . fsfp_cli_form_shortcode($post_type, $fields, $redirect)
+        . fsfp_cli_form_sanity_guard($kind)
+        . $after
+        . '</div></div></div><!-- /wp:group -->';
+}
+
 function fsfp_cli_edit_form_page(string $post_type, string $fields, string $list_url): string
 {
-    return '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Bearbeiten-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
+    return '<!-- wp:group --><div class="wp-block-group fsfp-edit-page fsfp-form-page fsfp-form-page--beschluss"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
         . fsfp_cli_contextual_back_link_script($list_url)
-        . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Bearbeiten-Link in der Liste.</p><!-- /wp:paragraph --></div><div class="fsfp-edit-page__form" hidden>'
+        . fsfp_cli_contextual_form_redirect_script($list_url)
+        . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt.</p><!-- /wp:paragraph --></div><div class="fsfp-form-shell fsfp-edit-page__form" hidden><div class="fsfp-form-header"><h2>Beschluss bearbeiten</h2></div><div class="fsfp-form-body">'
         . '[pods name="' . esc_attr($post_type) . '" form="true" slug="{@get.id}" fields="' . esc_attr($fields) . '" thank_you="' . esc_url($list_url) . '" label="Änderungen speichern"]'
-        . '</div><script>(function(){var params=new URLSearchParams(window.location.search);var id=params.get("id");var form=document.querySelector(".fsfp-edit-page__form");var notice=document.querySelector(".fsfp-edit-page__notice");if(!form||!notice){return;}if(id&&id.length){form.hidden=false;notice.hidden=true;}else{form.hidden=true;notice.hidden=false;}})();</script></div><!-- /wp:group -->';
+        . fsfp_cli_form_sanity_guard('beschluss')
+        . '</div></div><script>(function(){var params=new URLSearchParams(window.location.search);var id=params.get("id");var form=document.querySelector(".fsfp-edit-page__form");var notice=document.querySelector(".fsfp-edit-page__notice");if(!form||!notice){return;}if(id&&id.length){form.hidden=false;notice.hidden=true;}else{form.hidden=true;notice.hidden=false;}})();</script></div><!-- /wp:group -->';
 }
 
 function fsfp_cli_role_gated_edit_form_page(string $post_type, array $forms, string $list_url): string
 {
     $content = '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Workflow-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
         . fsfp_cli_contextual_back_link_script($list_url)
+        . fsfp_cli_contextual_form_redirect_script($list_url)
         . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Link in der Liste.</p><!-- /wp:paragraph --></div>';
 
     foreach ($forms as $form) {
         $content .= fsfp_cli_members_access_block(
             $form['roles'],
-            '<div class="fsfp-action-panel"><h3>' . esc_html($form['title']) . '</h3><div class="fsfp-edit-page__form" hidden>'
+            '<div class="fsfp-action-panel fsfp-payment-form-scope fsfp-form-page fsfp-form-page--zahlung"><h3>' . esc_html($form['title']) . '</h3><div class="fsfp-form-shell fsfp-edit-page__form" hidden><div class="fsfp-form-body">'
             . '[pods name="' . esc_attr($post_type) . '" form="true" slug="{@get.id}" fields="' . esc_attr($form['fields']) . '" thank_you="' . esc_url($list_url) . '" label="' . esc_attr($form['label']) . '"]'
-            . '</div></div>'
+            . ($form['guard'] ?? '')
+            . '</div></div>' . ($form['after'] ?? '') . '</div>'
         );
     }
 
@@ -1143,7 +1249,7 @@ foreach ($fachschaften as $fachschaft) {
 
     $beschluss_create_fields = 'post_title,beschlussdatum,betrag,zweck_beschreibung,belege,notes';
     $beschluss_form_fields = 'post_title,beschlussdatum,betrag,zweck_beschreibung,beschluss_status,decided_at,decided_by,decision_note,belege,notes';
-    $beschluss_create_id = fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', fsfp_cli_form_shortcode($types['beschluss'], $beschluss_create_fields, home_url("/dashboard/{$slug}/beschluesse/?created=1")), $fachschaft_id);
+    $beschluss_create_id = fsfp_cli_upsert_page('beschluss-erstellen', 'Beschluss erstellen', fsfp_cli_form_page('beschluss', $types['beschluss'], $beschluss_create_fields, home_url("/dashboard/{$slug}/beschluesse/?created=1"), 'Beschluss erfassen'), $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($beschluss_create_id, $edit_roles);
     $beschluss_edit_id = fsfp_cli_upsert_page('beschluss-bearbeiten', 'Beschluss bearbeiten', fsfp_cli_edit_form_page($types['beschluss'], $beschluss_form_fields, home_url("/dashboard/{$slug}/beschluesse/")), $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($beschluss_edit_id, $edit_roles);
@@ -1176,7 +1282,15 @@ foreach ($fachschaften as $fachschaft) {
     $zahlung_create_fields = 'post_title,betrag,verwendungszweck,belege,beschluss_ref,notes';
     $zahlung_finance_fields = 'post_title,betrag,verwendungszweck,zahlungs_status,submitted_at,belege,beschluss_ref,workflow_note,notes';
     $zahlung_reviewer_fields = 'zahlungs_status,reviewed_at,reviewed_by,executed_at,executed_by,workflow_note,notes';
-    $zahlung_create_id = fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', fsfp_cli_form_shortcode($types['zahlung'], $zahlung_create_fields, home_url("/dashboard/{$slug}/zahlungsanweisungen/?created=1")), $fachschaft_id);
+    $zahlung_create_content = fsfp_cli_form_page(
+        'zahlung',
+        $types['zahlung'],
+        $zahlung_create_fields,
+        home_url("/dashboard/{$slug}/zahlungsanweisungen/?created=1"),
+        'Zahlungsanweisung vorbereiten',
+        fsfp_cli_payment_budget_guard($types['beschluss'], $types['zahlung'])
+    );
+    $zahlung_create_id = fsfp_cli_upsert_page('zahlungsanweisung-erstellen', 'Zahlungsanweisung erstellen', $zahlung_create_content, $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($zahlung_create_id, $zahlung_create_roles);
     $zahlung_edit_id = fsfp_cli_upsert_page('zahlungsanweisung-bearbeiten', 'Zahlungsanweisung bearbeiten', fsfp_cli_role_gated_edit_form_page($types['zahlung'], [
         [
@@ -1184,6 +1298,8 @@ foreach ($fachschaften as $fachschaft) {
             'title' => 'Fachschaft: bearbeiten, einreichen oder stornieren',
             'fields' => $zahlung_finance_fields,
             'label' => 'Änderungen speichern',
+            'guard' => fsfp_cli_form_sanity_guard('zahlung'),
+            'after' => fsfp_cli_payment_budget_guard($types['beschluss'], $types['zahlung']),
         ],
         [
             'roles' => ['asta_finance', 'asta_reviewer'],
@@ -1255,6 +1371,37 @@ body .entry-content > .alignwide { max-width: min(1200px, calc(100vw - 3rem)); }
 .fsfp-action-panel { margin: 1rem 0; padding: 1rem; border: 1px solid #d8dee4; border-radius: 6px; background: #f8fafc; }
 .fsfp-action-panel h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
 .fsfp-action-panel p { margin: 0.25rem 0 0.75rem; color: #475569; }
+.fsfp-form-page { max-width: 820px; margin: 1rem 0 2rem; }
+.fsfp-form-shell { border: 1px solid #d8dee4; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,0.05); overflow: hidden; }
+.fsfp-form-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+.fsfp-form-header h2 { margin: 0; font-size: 1.25rem; line-height: 1.3; color: #0f172a; }
+.fsfp-form-body { padding: 1.25rem; }
+.fsfp-form-page form { display: grid; gap: 1rem; margin: 0; }
+.fsfp-form-page label,
+.fsfp-form-page .pods-form-ui-label { display: block; margin: 0 0 0.35rem; color: #334155; font-weight: 700; font-size: 0.95rem; }
+.fsfp-form-page input[type=text],
+.fsfp-form-page input[type=number],
+.fsfp-form-page input[type=date],
+.fsfp-form-page input[type=email],
+.fsfp-form-page input[type=url],
+.fsfp-form-page input[type=search],
+.fsfp-form-page select,
+.fsfp-form-page textarea { width: 100%; min-height: 2.65rem; padding: 0.55rem 0.7rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #0f172a; font: inherit; box-sizing: border-box; }
+.fsfp-form-page textarea { min-height: 8rem; resize: vertical; }
+.fsfp-form-page input:focus,
+.fsfp-form-page select:focus,
+.fsfp-form-page textarea:focus { outline: 2px solid #93c5fd; outline-offset: 1px; border-color: #2563eb; }
+.fsfp-form-page input[type=submit],
+.fsfp-form-page button[type=submit] { min-height: 2.65rem; padding: 0.55rem 1rem; border: 1px solid #0f172a; border-radius: 6px; background: #0f172a; color: #fff; font-weight: 700; cursor: pointer; }
+.fsfp-form-page input[type=submit]:disabled,
+.fsfp-form-page button[type=submit]:disabled { cursor: not-allowed; opacity: 0.55; }
+.fsfp-form-page .description,
+.fsfp-form-page .pods-form-ui-description { margin-top: 0.3rem; color: #64748b; font-size: 0.9rem; }
+.fsfp-form-errors,
+.fsfp-budget-warning { margin: 1rem 0 0; padding: 0.75rem 0.85rem; border: 1px solid #fecaca; border-radius: 6px; background: #fef2f2; color: #991b1b; }
+.fsfp-form-errors p,
+.fsfp-budget-warning p { margin: 0.2rem 0; }
+.fsfp-field-invalid { border-color: #dc2626 !important; background: #fff7f7 !important; }
 .fsfp-nav-workflow.is-hidden { display: none !important; }
 .fsfp-table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.95rem; table-layout: auto; }
 .fsfp-table th, .fsfp-table td { padding: 0.85rem; border-bottom: 1px solid #d8dee4; text-align: left; vertical-align: top; }

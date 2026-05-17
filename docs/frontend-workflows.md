@@ -51,10 +51,11 @@ view records through the restricted portal pages.
 
 ## Create and Edit
 
-Create pages use Pods frontend forms and create published workflow records so
-Pods frontend lists can render them immediately. The visible workflow state is
-stored in the domain status field, not the WordPress post status. The intended
-status transitions are documented in `docs/workflow-process.md`.
+Create pages use styled Pods frontend forms and create published workflow
+records so Pods frontend lists can render them immediately. The visible
+workflow state is stored in the domain status field, not the WordPress post
+status. The intended status transitions are documented in
+`docs/workflow-process.md`.
 
 Edit and workflow actions are modeled as status-driven workflow work. Finance
 roles use the role-gated “Bearbeiten” control for Beschlüsse and the
@@ -69,11 +70,19 @@ Create forms do not expose status fields. New records use the domain default
 `Entwurf`; later status changes are made through the role-gated edit/workflow
 forms. Zahlungsanweisungen reference a scoped Beschluss relationship field
 instead of free text. The setup and UI expect this Beschluss to be `Genehmigt`.
+The generated forms run basic browser-side checks before submit: non-empty
+titles, positive amounts, useful purpose text, Beschluss dates that are not in
+the future, and a selected approved Beschluss for Zahlungsanweisungen.
 Zahlungsanweisung detail pages link to the related Beschluss detail page and
 show the Beschluss budget beside the Zahlungsanweisung amount. Beschluss detail
 pages derive the reverse view from the same relationship and list all related
 Zahlungsanweisungen. Both detail views calculate `Betrag Offen` as `Betrag
 Beschlossen` minus the sum of all related Zahlungsanweisung amounts.
+Zahlungsanweisung create and Fachschaft edit forms include the same generated
+budget source data and disable submission when the requested amount exceeds the
+currently open budget. This is a portal UX guard; hard transition and budget
+enforcement would require a future server-side mechanism that still respects
+the no-runtime-custom-PHP architecture constraint.
 
 The visible workflow history is modeled as domain data, not as a generic audit
 log. Beschluss workflow forms expose `decided_at`, `decided_by`, and
