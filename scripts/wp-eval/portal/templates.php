@@ -17,7 +17,7 @@ function fsfp_cli_status_options(string $kind): array
         'Entwurf' => 'Entwurf',
         'Eingereicht' => 'Eingereicht',
         'Rückfrage' => 'Rückfrage',
-        'Stoniert' => 'Stoniert',
+        'Storniert' => 'Storniert',
         'Ausgeführt' => 'Ausgeführt',
     ];
 }
@@ -51,6 +51,81 @@ function fsfp_cli_contextual_form_redirect_script(string $default_url): string
     ]) . '</script>';
 }
 
+function fsfp_cli_table_controls_script(): string
+{
+    return '<script>' . fsfp_cli_render_config_template('portal/assets/table-controls.js', []) . '</script>';
+}
+
+function fsfp_cli_payment_queue_links(string $base_url, bool $include_fachschaft = false): string
+{
+    $queues = [
+        'Entwurf' => 'Entwürfe',
+        'Eingereicht' => 'Eingereicht',
+        'Rückfrage' => 'Rückfrage offen',
+        'Ausgeführt' => 'Ausgeführt',
+    ];
+    $links = '';
+    foreach ($queues as $status => $label) {
+        $links .= '<a class="fsfp-queue-link" href="' . esc_url(add_query_arg('status', $status, $base_url)) . '">' . esc_html($label) . '</a>';
+    }
+    $hint = $include_fachschaft ? 'Status-Queues über alle Fachschaften.' : 'Status-Queues für diese Fachschaft.';
+
+    return '<!-- wp:group --><div class="wp-block-group fsfp-queue-panel"><p>' . esc_html($hint) . '</p><div class="fsfp-queue-links">' . $links . '</div></div><!-- /wp:group -->';
+}
+
+function fsfp_cli_mailto_link(string $label, string $subject): string
+{
+    $email = (string) get_option('admin_email');
+    return '<a class="fsfp-mailto-link" href="mailto:' . esc_attr($email) . '?subject=' . esc_attr(rawurlencode($subject)) . '">' . esc_html($label) . '</a>';
+}
+
+function fsfp_cli_budget_report_source(string $beschluss_post_type, string $zahlung_post_type, string $fachschaft_slug, string $fachschaft_label): string
+{
+    $beschluss_template = sanitize_key("fsfp-report-{$beschluss_post_type}-budgets");
+    $zahlung_template = sanitize_key("fsfp-report-{$zahlung_post_type}-payments");
+
+    fsfp_cli_upsert_pods_template(
+        $beschluss_template,
+        $beschluss_template,
+        '<span class="fsfp-report-budget-row" data-fachschaft="' . esc_attr($fachschaft_slug) . '" data-fachschaft-label="' . esc_attr($fachschaft_label) . '" data-beschluss-id="{@ID}" data-budget-amount="{@betrag}"></span>'
+    );
+    fsfp_cli_upsert_pods_template(
+        $zahlung_template,
+        $zahlung_template,
+        '<span class="fsfp-report-payment-row" data-fachschaft="' . esc_attr($fachschaft_slug) . '" data-payment-type="{@zahlungstyp}" data-beschluss-id="{@beschluss_ref.ID}" data-payment-amount="{@betrag}"></span>'
+    );
+
+    return '<!-- wp:shortcode -->' . "\n"
+        . '[pods name="' . esc_attr($beschluss_post_type) . '" template="' . esc_attr($beschluss_template) . '" where="beschluss_status.meta_value = \'approved\'" expires="-1" limit="-1"]' . "\n"
+        . '<!-- /wp:shortcode -->'
+        . '<!-- wp:shortcode -->' . "\n"
+        . '[pods name="' . esc_attr($zahlung_post_type) . '" template="' . esc_attr($zahlung_template) . '" expires="-1" limit="-1"]' . "\n"
+        . '<!-- /wp:shortcode -->';
+}
+
+function fsfp_cli_budget_report(array $fachschaften): string
+{
+    $sources = '';
+    foreach ($fachschaften as $fachschaft) {
+        $slug = sanitize_key($fachschaft['slug']);
+        $label = $fachschaft['label'];
+        $types = fsfp_cli_workflow_types($slug);
+        $sources .= fsfp_cli_budget_report_source($types['beschluss'], $types['zahlung'], $slug, $label);
+    }
+
+    return '<!-- wp:heading {"level":3} --><h3>Budgetübersicht</h3><!-- /wp:heading -->'
+        . '<div class="fsfp-budget-report" data-fsfp-budget-report>'
+        . '<div hidden>' . $sources . '</div>'
+        . '<table class="fsfp-table"><thead><tr><th>Fachschaft</th><th>Beschlossen</th><th>Zahlungsanweisungen</th><th>Offen</th></tr></thead><tbody data-budget-report-body></tbody></table>'
+        . '<script>(function(){var root=document.currentScript.closest("[data-fsfp-budget-report]");if(!root){return;}function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}function money(v){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);}var rows={},budgetByBeschluss={};root.querySelectorAll(".fsfp-report-budget-row").forEach(function(el){var f=el.dataset.fachschaft,label=el.dataset.fachschaftLabel||f,amount=parseAmount(el.dataset.budgetAmount);rows[f]=rows[f]||{label:label,budget:0,spent:0};rows[f].budget+=amount;budgetByBeschluss[el.dataset.beschlussId]=f;});root.querySelectorAll(".fsfp-report-payment-row").forEach(function(el){if(el.dataset.paymentType==="vorkasse"){return;}var f=budgetByBeschluss[el.dataset.beschlussId]||el.dataset.fachschaft;if(!rows[f]){return;}rows[f].spent+=parseAmount(el.dataset.paymentAmount);});var body=root.querySelector("[data-budget-report-body]");if(!body){return;}body.innerHTML=Object.keys(rows).sort().map(function(f){var r=rows[f];return "<tr><td>"+r.label+"</td><td>"+money(r.budget)+"</td><td>"+money(r.spent)+"</td><td>"+money(r.budget-r.spent)+"</td></tr>";}).join("");})();</script>'
+        . '</div>';
+}
+
+function fsfp_cli_status_badge(string $field): string
+{
+    return '<span class="fsfp-status-badge">{@' . $field . '}</span>';
+}
+
 function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachschaft_slug, bool $include_edit_link = false, bool $hide_drafts = false, string $edit_label = 'Bearbeiten'): string
 {
     $date_th = $kind === 'beschluss' ? '<th>Datum</th>' : '';
@@ -79,7 +154,7 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
     $row = '<tr data-status="{@' . $status_field . '}">'
         . '<td>{@ID}</td>'
         . '<td>{@post_title}</td>'
-        . '<td>{@' . $status_field . '}</td>'
+        . '<td>' . fsfp_cli_status_badge($status_field) . '</td>'
         . $type_td
         . $date_td
         . '<td>{@betrag}</td>'
@@ -103,33 +178,11 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
     );
 
     $table_id = sanitize_html_class($template_slug);
-    $script = '<script>(function(){'
-        . 'var root=document.getElementById("' . esc_js($table_id) . '");'
-        . 'if(!root){return;}'
-        . 'var tbody=root.querySelector("[data-scoped-body]");'
-        . 'var search=root.querySelector("[data-scoped-search]");'
-        . 'var status=root.querySelector("[data-scoped-status]");'
-        . 'var prev=root.querySelector("[data-scoped-prev]");'
-        . 'var next=root.querySelector("[data-scoped-next]");'
-        . 'var pageLabel=root.querySelector("[data-scoped-page]");'
-        . 'var empty=root.querySelector("[data-scoped-empty]");'
-        . 'var pageSize=10;'
-        . 'var page=1;'
-        . 'var rows=Array.prototype.slice.call(tbody.querySelectorAll("tr")).map(function(row){return row.cloneNode(true);});'
-        . 'function text(row){return row.textContent.toLowerCase();}'
-        . 'function filtered(){var q=(search.value||"").toLowerCase();var s=status.value||"";return rows.filter(function(row){return (!q||text(row).indexOf(q)!==-1)&&(!s||row.getAttribute("data-status")===s);});}'
-        . 'function render(){var items=filtered();var pages=Math.max(1,Math.ceil(items.length/pageSize));if(page>pages){page=pages;}tbody.innerHTML="";items.slice((page-1)*pageSize,page*pageSize).forEach(function(row){tbody.appendChild(row.cloneNode(true));});empty.hidden=items.length!==0;pageLabel.textContent=items.length?("Seite "+page+" von "+pages+" · "+items.length+" Einträge"):"Keine Einträge";prev.disabled=page<=1;next.disabled=page>=pages;}'
-        . 'function reset(){page=1;render();}'
-        . '[search,status].forEach(function(control){control.addEventListener("input",reset);control.addEventListener("change",reset);});'
-        . 'prev.addEventListener("click",function(){if(page>1){page--;render();}});'
-        . 'next.addEventListener("click",function(){page++;render();});'
-        . 'render();'
-        . '})();</script>';
-
-    return '<!-- wp:group {"align":"wide"} --><div id="' . esc_attr($table_id) . '" class="wp-block-group alignwide fsfp-scoped-overview">' . "\n"
+    return '<!-- wp:group {"align":"wide"} --><div id="' . esc_attr($table_id) . '" class="wp-block-group alignwide fsfp-scoped-overview fsfp-table-wrap" data-fsfp-table="scoped" data-export-name="' . esc_attr($table_id) . '">' . "\n"
         . '<div class="fsfp-unified-controls">'
         . '<label>Suche <input type="search" data-scoped-search placeholder="Titel, ID, Betrag"></label>'
         . '<label>Status <select data-scoped-status>' . fsfp_cli_status_select_options($kind) . '</select></label>'
+        . '<button type="button" class="fsfp-export-button" data-scoped-export>CSV exportieren</button>'
         . '</div>'
         . '<table class="fsfp-table fsfp-scoped-table"><thead><tr><th>ID</th><th>Titel</th><th>Status</th>' . $type_th . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-scoped-body>'
         . '<!-- wp:shortcode -->' . "\n"
@@ -138,7 +191,7 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
         . '</tbody></table>'
         . '<p class="fsfp-unified-empty" data-scoped-empty hidden>Keine passenden Einträge gefunden.</p>'
         . '<div class="fsfp-unified-pagination"><button type="button" data-scoped-prev>Zurück</button><span data-scoped-page></span><button type="button" data-scoped-next>Weiter</button></div>'
-        . $script
+        . fsfp_cli_table_controls_script()
         . '</div><!-- /wp:group -->';
 }
 
@@ -165,7 +218,7 @@ function fsfp_cli_unified_overview_source(string $post_type, string $kind, strin
         . '<td>' . esc_html($fachschaft_label) . '</td>'
         . '<td>{@ID}</td>'
         . '<td>{@post_title}</td>'
-        . '<td>{@' . $status_field . '}</td>'
+        . '<td>' . fsfp_cli_status_badge($status_field) . '</td>'
         . $type_td
         . $date_td
         . '<td>{@betrag}</td>'
@@ -198,41 +251,18 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
         $sources .= fsfp_cli_unified_overview_source($types[$kind === 'beschluss' ? 'beschluss' : 'zahlung'], $kind, $slug, $label);
     }
 
-    $script = '<script>(function(){'
-        . 'var root=document.getElementById("' . esc_js($table_id) . '");'
-        . 'if(!root){return;}'
-        . 'var tbody=root.querySelector("[data-unified-body]");'
-        . 'var search=root.querySelector("[data-unified-search]");'
-        . 'var status=root.querySelector("[data-unified-status]");'
-        . 'var fachschaft=root.querySelector("[data-unified-fachschaft]");'
-        . 'var prev=root.querySelector("[data-unified-prev]");'
-        . 'var next=root.querySelector("[data-unified-next]");'
-        . 'var pageLabel=root.querySelector("[data-unified-page]");'
-        . 'var empty=root.querySelector("[data-unified-empty]");'
-        . 'var pageSize=10;'
-        . 'var page=1;'
-        . 'var rows=Array.prototype.slice.call(tbody.querySelectorAll("tr")).map(function(row){return row.cloneNode(true);});'
-        . 'function text(row){return row.textContent.toLowerCase();}'
-        . 'function filtered(){var q=(search.value||"").toLowerCase();var s=status.value||"";var f=fachschaft.value||"";return rows.filter(function(row){return (!q||text(row).indexOf(q)!==-1)&&(!s||row.getAttribute("data-status")===s)&&(!f||row.getAttribute("data-fachschaft")===f);});}'
-        . 'function render(){var items=filtered();var pages=Math.max(1,Math.ceil(items.length/pageSize));if(page>pages){page=pages;}tbody.innerHTML="";items.slice((page-1)*pageSize,page*pageSize).forEach(function(row){tbody.appendChild(row.cloneNode(true));});empty.hidden=items.length!==0;pageLabel.textContent=items.length?("Seite "+page+" von "+pages+" · "+items.length+" Einträge"):"Keine Einträge";prev.disabled=page<=1;next.disabled=page>=pages;}'
-        . 'function reset(){page=1;render();}'
-        . '[search,status,fachschaft].forEach(function(control){control.addEventListener("input",reset);control.addEventListener("change",reset);});'
-        . 'prev.addEventListener("click",function(){if(page>1){page--;render();}});'
-        . 'next.addEventListener("click",function(){page++;render();});'
-        . 'render();'
-        . '})();</script>';
-
     return '<!-- wp:heading --><h2>' . esc_html($title) . '</h2><!-- /wp:heading -->'
-        . '<!-- wp:group {"align":"wide"} --><div id="' . esc_attr($table_id) . '" class="wp-block-group alignwide fsfp-unified-overview">'
+        . '<!-- wp:group {"align":"wide"} --><div id="' . esc_attr($table_id) . '" class="wp-block-group alignwide fsfp-unified-overview fsfp-table-wrap" data-fsfp-table="unified" data-export-name="' . esc_attr($table_id) . '">'
         . '<div class="fsfp-unified-controls">'
         . '<label>Suche <input type="search" data-unified-search placeholder="Titel, ID, Betrag"></label>'
         . '<label>Status <select data-unified-status>' . fsfp_cli_status_select_options($kind) . '</select></label>'
         . '<label>Fachschaft <select data-unified-fachschaft>' . $fachschaft_select . '</select></label>'
+        . '<button type="button" class="fsfp-export-button" data-unified-export>CSV exportieren</button>'
         . '</div>'
         . '<table class="fsfp-table fsfp-unified-table"><thead><tr><th>Fachschaft</th><th>ID</th><th>Titel</th><th>Status</th>' . $type_th . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-unified-body>' . $sources . '</tbody></table>'
         . '<p class="fsfp-unified-empty" data-unified-empty hidden>Keine passenden Einträge gefunden.</p>'
         . '<div class="fsfp-unified-pagination"><button type="button" data-unified-prev>Zurück</button><span data-unified-page></span><button type="button" data-unified-next>Weiter</button></div>'
-        . $script
+        . fsfp_cli_table_controls_script()
         . '</div><!-- /wp:group -->';
 }
 
@@ -365,6 +395,8 @@ function fsfp_cli_workflow_metadata_markup(string $post_type, string $kind): str
             . '<tbody>'
             . '<tr><td>Erstellt</td><td>Entwurf</td><td>{@post_date}</td><td>{@post_author.display_name}</td><td></td></tr>'
             . '<tr><td>Eingereicht</td><td>Eingereicht</td><td>{@submitted_at}</td><td></td><td>{@workflow_note}</td></tr>'
+            . '<tr><td>Rückfrage</td><td>Rückfrage</td><td>{@clarification_requested_at}</td><td>{@clarification_requested_by}</td><td>{@clarification_request}</td></tr>'
+            . '<tr><td>Antwort</td><td>Rückfrage beantwortet</td><td>{@clarification_answered_at}</td><td>{@clarification_answered_by}</td><td>{@clarification_response}</td></tr>'
             . '<tr><td>Geprüft</td><td>{@zahlungs_status}</td><td>{@reviewed_at}</td><td>{@reviewed_by}</td><td>{@workflow_note}</td></tr>'
             . '<tr><td>Ausgeführt</td><td>Ausgeführt</td><td>{@executed_at}</td><td>{@executed_by}</td><td>{@workflow_note}</td></tr>'
             . '</tbody></table>'
@@ -384,6 +416,8 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
     $description_field = $kind === 'beschluss' ? 'zweck_beschreibung' : 'verwendungszweck';
     $reference_markup = '';
     $payment_type_markup = '';
+    $payment_metadata_markup = '';
+    $clarification_markup = '';
     $related_markup = '';
     $amount_markup = '<dt>Betrag Zahlungsanweisung</dt><dd>{@betrag}</dd>';
 
@@ -402,6 +436,17 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
             . '<dt>Begründung für Vorkasse</dt><dd>{@vorkasse_begruendung}</dd>'
             . '[if field="vorkasse_method" value="ueberweisung"]<dt>Empfänger Details / Kontoverbindung</dt><dd>{@empfaenger_details}</dd>[/if]'
             . '[/if]';
+        $payment_metadata_markup = '<dt>Empfänger / Lieferant</dt><dd>{@vendor_name}</dd>'
+            . '<dt>Rechnungsnummer / Referenz</dt><dd>{@invoice_number}</dd>'
+            . '<dt>Rechnungsdatum</dt><dd>{@invoice_date}</dd>';
+        $clarification_markup = '<section class="fsfp-clarification"><h4>Rückfrage</h4><dl>'
+            . '<dt>Gestellt am</dt><dd>{@clarification_requested_at}</dd>'
+            . '<dt>Gestellt durch</dt><dd>{@clarification_requested_by}</dd>'
+            . '<dt>Rückfrage</dt><dd>{@clarification_request}</dd>'
+            . '<dt>Beantwortet am</dt><dd>{@clarification_answered_at}</dd>'
+            . '<dt>Beantwortet durch</dt><dd>{@clarification_answered_by}</dd>'
+            . '<dt>Antwort</dt><dd>{@clarification_response}</dd>'
+            . '</dl></section>';
         $reference_markup = '[if field="zahlungstyp" value="vorkasse" compare="NOT IN"]'
             . '<dt>Beschluss</dt><dd><a href="' . $beschluss_url . '">{@beschluss_ref.post_title}</a></dd>'
             . '<dt>Betrag Beschlossen</dt><dd data-budget-amount>{@beschluss_ref.betrag}</dd>'
@@ -425,9 +470,11 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
         . $payment_type_markup
         . $amount_markup
         . '<dt>Beschreibung</dt><dd>{@' . $description_field . '}</dd>'
+        . $payment_metadata_markup
         . $reference_markup
         . '<dt>Notizen</dt><dd>{@notes}</dd>'
         . '</dl>'
+        . $clarification_markup
         . '</article>' . "\n"
         . '[/pods]' . "\n"
         . '<!-- /wp:html -->' . "\n"
@@ -443,7 +490,7 @@ function fsfp_cli_workflow_overview(string $kind): string
 {
     $items = $kind === 'beschluss'
         ? ['Entwurf', 'Genehmigt', 'Abgelehnt']
-        : ['Entwurf', 'Eingereicht', 'Rückfrage', 'Stoniert', 'Ausgeführt'];
+        : ['Entwurf', 'Eingereicht', 'Rückfrage', 'Storniert', 'Ausgeführt'];
 
     $badges = '';
     foreach ($items as $index => $item) {
@@ -507,12 +554,18 @@ function fsfp_cli_form_sanity_guard(string $kind): string
             'vorkasse_method' => 'Bitte wähle eine Vorkasse-Methode aus.',
             'vorkasse_begruendung' => 'Bitte begründe, warum Vorkasse notwendig ist.',
             'empfaenger_details' => 'Bitte gib für Überweisungen die Empfänger- oder Kontodaten an.',
+            'vendor_name' => 'Hinweis: Empfänger oder Lieferant fehlt.',
+            'invoice_number' => 'Hinweis: Rechnungsnummer oder Referenz fehlt.',
+            'invoice_date' => 'Hinweis: Rechnungsdatum fehlt oder liegt in der Zukunft.',
+            'belege' => 'Hinweis: Es ist noch kein Beleg hochgeladen.',
         ];
 
     return '<div class="fsfp-form-errors" data-form-errors hidden></div>'
+        . '<div class="fsfp-form-warnings" data-form-warnings hidden></div>'
         . '<script>(function(){'
         . 'var root=document.currentScript.closest(".fsfp-form-page,.fsfp-payment-form-scope");if(!root){return;}'
         . 'var messages=' . wp_json_encode($rules, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ';'
+        . 'var warningFields={vendor_name:1,invoice_number:1,invoice_date:1,belege:1};'
         . 'function field(name){return root.querySelector(`[name="${name}"],[name="pods_field_${name}"],[name$="[${name}]"],[id$="-${name}"],[id$="-pods-field-${name.replace(/_/g,"-")}"],[id$="_${name}"]`);}'
         . 'function fieldWrap(el){return el?(el.closest(".pods-field")||el.closest(".pods-form-ui-row")||el.closest(".form-field")||el.parentElement):null;}'
         . 'function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}'
@@ -521,10 +574,11 @@ function fsfp_cli_form_sanity_guard(string $kind): string
         . 'function setInvalid(el,invalid){if(!el){return;}el.classList.toggle("fsfp-field-invalid",invalid);}'
         . 'function isVorkasse(){var el=field("zahlungstyp");return el&&(el.value||"")==="vorkasse";}'
         . 'function isTransfer(){var el=field("vorkasse_method");return el&&(el.value||"")==="ueberweisung";}'
+        . 'function hasFileValue(el){if(!el){return false;}if(el.files&&el.files.length){return true;}return !!textValue(el)||!!(fieldWrap(el)&&fieldWrap(el).querySelector(".pods-file, .pods-file-list, .pods-file-preview, a[href*=\"/wp-content/uploads/\"]"));}'
         . 'function syncVorkasseFields(){var vorkasse=isVorkasse();["vorkasse_method","vorkasse_begruendung"].forEach(function(name){var el=field(name),wrap=fieldWrap(el);if(wrap){wrap.hidden=!vorkasse;}if(el){el.required=vorkasse;}});var details=field("empfaenger_details"),detailsWrap=fieldWrap(details),showDetails=vorkasse&&isTransfer();if(detailsWrap){detailsWrap.hidden=!showDetails;}if(details){details.required=showDetails;}var beschluss=field("beschluss_ref"),beschlussWrap=fieldWrap(beschluss);if(beschlussWrap){beschlussWrap.hidden=vorkasse;}if(beschluss){beschluss.required=!vorkasse;if(vorkasse){beschluss.value="";}}}'
-        . 'function validate(show){syncVorkasseFields();var errors=[];Object.keys(messages).forEach(function(name){var el=field(name);var invalid=false;if(name==="betrag"){invalid=parseAmount(textValue(el))<=0;}else if(name==="beschlussdatum"){invalid=!textValue(el)||isFutureDate(textValue(el));}else if(name==="post_title"){invalid=textValue(el).length<3;}else if(name==="zweck_beschreibung"||name==="verwendungszweck"){invalid=textValue(el).length<10;}else if(name==="beschluss_ref"){invalid=!isVorkasse()&&!textValue(el);}else if(name==="vorkasse_method"){invalid=isVorkasse()&&!textValue(el);}else if(name==="vorkasse_begruendung"){invalid=isVorkasse()&&textValue(el).length<10;}else if(name==="empfaenger_details"){invalid=isVorkasse()&&isTransfer()&&textValue(el).length<5;}setInvalid(el,invalid);if(invalid){errors.push(messages[name]);}});var box=root.querySelector("[data-form-errors]");if(box){box.hidden=errors.length===0;box.innerHTML=errors.map(function(error){return "<p>"+error+"</p>";}).join("");}return errors.length===0;}'
+        . 'function validate(show){syncVorkasseFields();var errors=[],warnings=[];Object.keys(messages).forEach(function(name){var el=field(name);var invalid=false;if(name==="betrag"){invalid=parseAmount(textValue(el))<=0;}else if(name==="beschlussdatum"){invalid=!textValue(el)||isFutureDate(textValue(el));}else if(name==="invoice_date"){invalid=!textValue(el)||isFutureDate(textValue(el));}else if(name==="post_title"){invalid=textValue(el).length<3;}else if(name==="zweck_beschreibung"||name==="verwendungszweck"){invalid=textValue(el).length<10;}else if(name==="beschluss_ref"){invalid=!isVorkasse()&&!textValue(el);}else if(name==="vorkasse_method"){invalid=isVorkasse()&&!textValue(el);}else if(name==="vorkasse_begruendung"){invalid=isVorkasse()&&textValue(el).length<10;}else if(name==="empfaenger_details"){invalid=isVorkasse()&&isTransfer()&&textValue(el).length<5;}else if(name==="vendor_name"||name==="invoice_number"){invalid=textValue(el).length<2;}else if(name==="belege"){invalid=!hasFileValue(el);}setInvalid(el,invalid&&!warningFields[name]);if(invalid){(warningFields[name]?warnings:errors).push(messages[name]);}});var box=root.querySelector("[data-form-errors]");if(box){box.hidden=errors.length===0;box.innerHTML=errors.map(function(error){return "<p>"+error+"</p>";}).join("");}var warningBox=root.querySelector("[data-form-warnings]");if(warningBox){warningBox.hidden=warnings.length===0;warningBox.innerHTML=warnings.map(function(warning){return "<p>"+warning+"</p>";}).join("");}return errors.length===0;}'
         . 'root.addEventListener("input",function(){validate(false);});root.addEventListener("change",function(){validate(false);});'
-        . 'function enhanceFields(){Object.keys(messages).forEach(function(name){var el=field(name);if(!el||el.dataset.fsfpSanityBound==="1"){return;}el.dataset.fsfpSanityBound="1";if(name!=="beschluss_ref"&&name!=="vorkasse_method"&&name!=="vorkasse_begruendung"&&name!=="empfaenger_details"){el.required=true;}if(name==="betrag"){el.setAttribute("min","0.01");}if(name==="post_title"){el.setAttribute("minlength","3");}if(name==="zweck_beschreibung"||name==="verwendungszweck"||name==="vorkasse_begruendung"){el.setAttribute("minlength","10");}});syncVorkasseFields();validate(false);}'
+        . 'function enhanceFields(){Object.keys(messages).forEach(function(name){var el=field(name);if(!el||el.dataset.fsfpSanityBound==="1"){return;}el.dataset.fsfpSanityBound="1";if(!warningFields[name]&&name!=="beschluss_ref"&&name!=="vorkasse_method"&&name!=="vorkasse_begruendung"&&name!=="empfaenger_details"){el.required=true;}if(name==="betrag"){el.setAttribute("min","0.01");}if(name==="post_title"){el.setAttribute("minlength","3");}if(name==="zweck_beschreibung"||name==="verwendungszweck"||name==="vorkasse_begruendung"){el.setAttribute("minlength","10");}});syncVorkasseFields();validate(false);}'
         . 'var form=root.querySelector("form");if(form){form.addEventListener("submit",function(event){enhanceFields();if(!validate(true)){event.preventDefault();event.stopImmediatePropagation();}},true);}'
         . 'enhanceFields();[250,750,1500,3000].forEach(function(delay){setTimeout(enhanceFields,delay);});'
         . '})();</script>';

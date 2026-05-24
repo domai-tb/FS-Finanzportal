@@ -80,8 +80,9 @@ payments do not reference a Beschluss; they require a delivery method
 payments also require recipient/account details.
 
 The generated forms run basic browser-side checks before submit: non-empty
-titles, positive amounts, useful purpose text, Beschluss dates that are not in
-the future, a selected approved Beschluss for standard Zahlungsanweisungen, and
+titles, positive amounts, useful purpose text, Beschluss and invoice dates that
+are not in the future, a selected approved Beschluss for standard
+Zahlungsanweisungen, invoice/vendor/reference metadata, an uploaded Beleg, and
 the conditional Vorkasse fields for advance payments. Zahlungsanweisung detail
 pages link to the related Beschluss detail page and show the Beschluss budget
 beside the Zahlungsanweisung amount for standard payments. For Vorkasse
@@ -108,6 +109,12 @@ shortcode itself is not visible in the page. Meta Ledger remains a background
 audit mechanism for post-meta changes, but it is not the portal's visible
 workflow history UI.
 
+List pages include generated action queues for common work states
+(`Entwürfe`, `Eingereicht`, `Rückfrage offen`, `Ausgeführt`) and CSV export for
+the currently visible filtered table rows. The AStA Beschluss overview also
+includes a generated budget summary that derives decided, spent, and open
+amounts from the rendered scoped records.
+
 ## Business Status Labels
 
 Beschlüsse use:
@@ -121,5 +128,5 @@ Zahlungsanweisungen use:
 - `Entwurf`
 - `Eingereicht`
 - `Rückfrage`
-- `Stoniert`
+- `Storniert`
 - `Ausgeführt`

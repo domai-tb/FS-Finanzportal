@@ -24,6 +24,7 @@ KC_WORDPRESS_CLIENT_SECRET="${KC_WORDPRESS_CLIENT_SECRET:?KC_WORDPRESS_CLIENT_SE
 WP_URL="${WP_URL:-http://localhost:8080}"
 KC_PORT="${KC_PORT:-8180}"
 KC_EXTERNAL_URL="http://localhost:${KC_PORT}"
+FACHSCHAFTEN_CONFIG="${PROJECT_ROOT}/wordpress/config/fachschaften.json"
 
 KC=(docker compose exec -T keycloak /opt/keycloak/bin/kcadm.sh)
 
@@ -54,6 +55,27 @@ kc() {
 
   printf '%s\n' "$output" >&2
   return "$status"
+}
+
+fachschaften_tsv() {
+  php -r '
+    $file = $argv[1];
+    $config = json_decode(file_get_contents($file), true);
+    if (!is_array($config) || empty($config["fachschaften"]) || !is_array($config["fachschaften"])) {
+      fwrite(STDERR, "Invalid Fachschaften JSON\n");
+      exit(1);
+    }
+    foreach ($config["fachschaften"] as $fachschaft) {
+      $slug = preg_replace("/[^a-z0-9_-]/", "", strtolower((string) ($fachschaft["slug"] ?? "")));
+      $label = (string) ($fachschaft["label"] ?? $slug);
+      $short = (string) ($fachschaft["short_label"] ?? $label);
+      if ($slug === "") {
+        fwrite(STDERR, "Fachschaft slug must not be empty\n");
+        exit(1);
+      }
+      echo $slug, "\t", $label, "\t", $short, "\n";
+    }
+  ' "$FACHSCHAFTEN_CONFIG"
 }
 
 echo "==> Authenticating Keycloak admin CLI..."
@@ -107,12 +129,10 @@ ensure_realm_role asta_finance "AStA finance team responsible for final accounti
 ensure_realm_role asta_reviewer "AStA reviewer for Beschluesse"
 ensure_realm_role auditor "Internal or external auditor"
 ensure_realm_role fs_portal_empty "Authenticated user without Fachschaft workflow access"
-ensure_realm_role fs_informatik_finance "Fachschaft Informatik finance officer"
-ensure_realm_role fs_informatik_reader "Fachschaft Informatik read-only member"
-ensure_realm_role fs_maschinenbau_finance "Fachschaft Maschinenbau finance officer"
-ensure_realm_role fs_maschinenbau_reader "Fachschaft Maschinenbau read-only member"
-ensure_realm_role fs_philosophie_finance "Fachschaft Philosophie finance officer"
-ensure_realm_role fs_philosophie_reader "Fachschaft Philosophie read-only member"
+while IFS=$'\t' read -r fachschaft_slug fachschaft_label _fachschaft_short; do
+  ensure_realm_role "fs_${fachschaft_slug}_finance" "${fachschaft_label} finance officer"
+  ensure_realm_role "fs_${fachschaft_slug}_reader" "${fachschaft_label} read-only member"
+done < <(fachschaften_tsv)
 
 group_id() {
   local group="$1"
@@ -135,9 +155,9 @@ ensure_fachschaft_group() {
 }
 
 echo "==> Ensuring Keycloak Fachschaft groups..."
-ensure_fachschaft_group informatik
-ensure_fachschaft_group maschinenbau
-ensure_fachschaft_group philosophie
+while IFS=$'\t' read -r fachschaft_slug _fachschaft_label _fachschaft_short; do
+  ensure_fachschaft_group "$fachschaft_slug"
+done < <(fachschaften_tsv)
 
 client_uuid() {
   kc get clients \
@@ -332,15 +352,22 @@ ensure_demo_user() {
 }
 
 echo "==> Ensuring Keycloak demo users..."
-ensure_demo_user demo-fachschaft demo-fachschaft@example.com Demo Fachschaft fs_informatik_finance informatik
-ensure_demo_user demo-informatik-reader demo-informatik-reader@example.com Demo InformatikReader fs_informatik_reader informatik
-ensure_demo_user demo-informatik-reader2 demo-informatik-reader2@example.com Demo InformatikReaderTwo fs_informatik_reader informatik
-ensure_demo_user demo-maschinenbau-finance demo-maschinenbau-finance@example.com Demo MaschinenbauFinance fs_maschinenbau_finance maschinenbau
-ensure_demo_user demo-maschinenbau-reader demo-maschinenbau-reader@example.com Demo MaschinenbauReader fs_maschinenbau_reader maschinenbau
-ensure_demo_user demo-maschinenbau-reader2 demo-maschinenbau-reader2@example.com Demo MaschinenbauReaderTwo fs_maschinenbau_reader maschinenbau
-ensure_demo_user demo-philosophie-finance demo-philosophie-finance@example.com Demo PhilosophieFinance fs_philosophie_finance philosophie
-ensure_demo_user demo-philosophie demo-philosophie@example.com Demo Philosophie fs_philosophie_reader philosophie
-ensure_demo_user demo-philosophie-reader2 demo-philosophie-reader2@example.com Demo PhilosophieReaderTwo fs_philosophie_reader philosophie
+while IFS=$'\t' read -r fachschaft_slug _fachschaft_label fachschaft_short; do
+  finance_user="demo-${fachschaft_slug}-finance"
+  reader_user="demo-${fachschaft_slug}-reader"
+  reader2_user="demo-${fachschaft_slug}-reader2"
+
+  if [ "$fachschaft_slug" = "informatik" ]; then
+    finance_user="demo-fachschaft"
+  fi
+  if [ "$fachschaft_slug" = "philosophie" ]; then
+    reader_user="demo-philosophie"
+  fi
+
+  ensure_demo_user "$finance_user" "${finance_user}@example.com" Demo "${fachschaft_short}Finance" "fs_${fachschaft_slug}_finance" "$fachschaft_slug"
+  ensure_demo_user "$reader_user" "${reader_user}@example.com" Demo "${fachschaft_short}Reader" "fs_${fachschaft_slug}_reader" "$fachschaft_slug"
+  ensure_demo_user "$reader2_user" "${reader2_user}@example.com" Demo "${fachschaft_short}ReaderTwo" "fs_${fachschaft_slug}_reader" "$fachschaft_slug"
+done < <(fachschaften_tsv)
 ensure_demo_user demo-asta demo-asta@example.com Demo AStA asta_finance
 ensure_demo_user demo-reviewer demo-reviewer@example.com Demo Reviewer asta_reviewer
 ensure_demo_user demo-auditor demo-auditor@example.com Demo Auditor auditor

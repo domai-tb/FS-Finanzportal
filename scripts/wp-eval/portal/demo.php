@@ -10,20 +10,29 @@ function fsfp_cli_seed_portal_demo(array $fachschaften): void
     }
     
     $users = [
-        ['demo-fachschaft', 'demo-fachschaft@example.com', 'fs_informatik_finance', 'informatik'],
-        ['demo-informatik-reader', 'demo-informatik-reader@example.com', 'fs_informatik_reader', 'informatik'],
-        ['demo-informatik-reader2', 'demo-informatik-reader2@example.com', 'fs_informatik_reader', 'informatik'],
-        ['demo-maschinenbau-finance', 'demo-maschinenbau-finance@example.com', 'fs_maschinenbau_finance', 'maschinenbau'],
-        ['demo-maschinenbau-reader', 'demo-maschinenbau-reader@example.com', 'fs_maschinenbau_reader', 'maschinenbau'],
-        ['demo-maschinenbau-reader2', 'demo-maschinenbau-reader2@example.com', 'fs_maschinenbau_reader', 'maschinenbau'],
-        ['demo-philosophie-finance', 'demo-philosophie-finance@example.com', 'fs_philosophie_finance', 'philosophie'],
-        ['demo-philosophie', 'demo-philosophie@example.com', 'fs_philosophie_reader', 'philosophie'],
-        ['demo-philosophie-reader2', 'demo-philosophie-reader2@example.com', 'fs_philosophie_reader', 'philosophie'],
         ['demo-asta', 'demo-asta@example.com', 'asta_finance', ''],
         ['demo-reviewer', 'demo-reviewer@example.com', 'asta_reviewer', ''],
         ['demo-auditor', 'demo-auditor@example.com', 'auditor', ''],
         ['demo-unassigned', 'demo-unassigned@example.com', 'fs_portal_empty', ''],
     ];
+
+    foreach ($fachschaften as $fachschaft) {
+        $slug = sanitize_key($fachschaft['slug']);
+        $finance_login = "demo-{$slug}-finance";
+        $reader_login = "demo-{$slug}-reader";
+        $reader2_login = "demo-{$slug}-reader2";
+
+        if ($slug === 'informatik') {
+            $finance_login = 'demo-fachschaft';
+        }
+        if ($slug === 'philosophie') {
+            $reader_login = 'demo-philosophie';
+        }
+
+        $users[] = [$finance_login, "{$finance_login}@example.com", "fs_{$slug}_finance", $slug];
+        $users[] = [$reader_login, "{$reader_login}@example.com", "fs_{$slug}_reader", $slug];
+        $users[] = [$reader2_login, "{$reader2_login}@example.com", "fs_{$slug}_reader", $slug];
+    }
     
     foreach ($users as $user) {
         fsfp_cli_upsert_user($user[0], $user[1], $user[2], $user[3]);

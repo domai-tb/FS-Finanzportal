@@ -87,9 +87,12 @@ Important Zahlungsanweisung fields:
 | `submitted_at` | Date set by the user when submitting the payment |
 | `reviewed_at` | Date set by the reviewer when checking the payment |
 | `reviewed_by` | Person/role recorded by the user for review |
+| `clarification_requested_at`, `clarification_requested_by`, `clarification_request` | Structured AStA Rückfrage metadata |
+| `clarification_answered_at`, `clarification_answered_by`, `clarification_response` | Structured Fachschaft response metadata |
 | `executed_at` | Date set by the user when marking the payment executed |
 | `executed_by` | Person/role recorded by the user for execution |
 | `workflow_note` | Workflow note for submission, review, correction, or execution |
+| `vendor_name`, `invoice_number`, `invoice_date` | Invoice and recipient completeness metadata |
 | `belege` | Attachments |
 | `beschluss_ref` | Single relationship to a scoped Beschluss; required by generated forms for standard payments and empty for Vorkasse |
 | `notes` | Notes and correction requests |
@@ -139,6 +142,18 @@ status vocabulary. Status and other workflow field changes are recorded by the
 free WordPress.org Meta Ledger plugin as post-meta history. Without custom
 runtime PHP, transition rules are enforced by generated role-gated pages/forms,
 capabilities, and verification rather than by a custom state-machine hook.
+Automated workflow notifications are intentionally not configured in the
+baseline. The free WordPress.org `notification` plugin was reviewed because it
+supports email/webhook notifications and post/custom-field merge tags, but
+precise workflow notifications for Pods meta transitions would still require
+runtime trigger/condition integration or manual admin configuration that this
+project intentionally avoids. Generated action queues, visible Rückfrage
+fields, and contextual mail/contact affordances are the no-custom-runtime
+fallback.
+
+Docker image tags are pinned to explicit minor/patch lines in `compose.yaml`.
+Update those tags deliberately during maintenance and re-run the full setup
+verification after each image bump.
 
 ## WordPress Plugins
 

@@ -68,7 +68,7 @@ Allowed Zahlungsanweisung statuses:
 | Entwurf | The Fachschaft is still preparing the Zahlungsanweisung | Fachschaft finance |
 | Eingereicht | The Fachschaft has submitted the Zahlungsanweisung for AStA review | Fachschaft finance |
 | Rückfrage | AStA FSR Buchhaltung needs clarification before execution | AStA FSR Buchhaltung |
-| Stoniert | The Fachschaft has cancelled the Zahlungsanweisung before execution | Fachschaft finance |
+| Storniert | The Fachschaft has cancelled the Zahlungsanweisung before execution | Fachschaft finance |
 | Ausgeführt | The payment was executed and the workflow is closed | AStA FSR Buchhaltung |
 
 Rules:
@@ -83,12 +83,13 @@ Rules:
   delivery method, and Vorkasse justification are complete. Bank-transfer
   Vorkasse also needs recipient/account details.
 - Vorkasse payments are not included in Beschluss open-budget calculations.
-- Fachschaft finance may set `Stoniert` before the Zahlungsanweisung is
+- Fachschaft finance may set `Storniert` before the Zahlungsanweisung is
   `Ausgeführt`.
 - Zahlungsanweisungen cannot be rejected. Clarification happens through
   `Rückfrage`.
-- The actual question/answer exchange for `Rückfrage` is outside the portal for
-  now and will be handled by e-mail.
+- The generated portal stores one structured Rückfrage request and one
+  structured response on the Zahlungsanweisung. Follow-up discussion can still
+  happen by e-mail when needed.
 - Only AStA FSR Buchhaltung may set `Rückfrage`.
 - Only AStA FSR Buchhaltung may set `Ausgeführt`.
 - `Ausgeführt` is terminal. After a Zahlungsanweisung is `Ausgeführt`, no
@@ -111,6 +112,8 @@ Each Zahlungsanweisung detail page shows:
 
 - `Erstellt`
 - `Eingereicht`
+- `Rückfrage`
+- `Antwort`
 - `Geprüft`
 - `Ausgeführt`
 
@@ -134,9 +137,9 @@ For Zahlungsanweisungen:
 
 ```text
 Entwurf -> Eingereicht
-Entwurf -> Stoniert
+Entwurf -> Storniert
 Rückfrage -> Eingereicht
-Rückfrage -> Stoniert
+Rückfrage -> Storniert
 Eingereicht -> Rückfrage
 Eingereicht -> Ausgeführt
 ```

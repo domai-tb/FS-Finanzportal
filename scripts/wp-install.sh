@@ -31,9 +31,7 @@ install_plugin() {
     return 0
   fi
 
-  if ! $WP plugin install "$slug" --activate; then
-    echo "    WARN: Could not install ${slug} (check network)." >&2
-  fi
+  $WP plugin install "$slug" --activate
 }
 
 wait_for_db
@@ -65,12 +63,10 @@ if ! $WP config has PODS_SHORTCODE_ALLOW_EVALUATE_TAGS >/dev/null 2>&1; then
 fi
 
 echo "==> Installing German language pack..."
-if ! $WP language core install de_DE; then
-  echo "    WARN: Could not install de_DE language pack (check network)." >&2
+if ! $WP language core is-installed de_DE >/dev/null 2>&1; then
+  $WP language core install de_DE
 fi
-if ! $WP site switch-language de_DE; then
-  echo "    WARN: Could not switch site language to de_DE." >&2
-fi
+$WP site switch-language de_DE
 
 echo "==> Installing and activating WordPress plugins..."
 install_plugin daggerhart-openid-connect-generic

@@ -15,7 +15,7 @@ services:
 
   # ─── MariaDB (WordPress) ───────────────────────────────────
   mariadb:
-    image: mariadb:11
+    image: mariadb:11.4
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -32,7 +32,7 @@ services:
 
   # ─── WordPress ────────────────────────────────────────────
   wordpress:
-    image: wordpress:6-apache
+    image: wordpress:6.8.1-php8.3-apache
     restart: unless-stopped
     depends_on:
       mariadb:
@@ -92,7 +92,7 @@ services:
 
   # ─── PostgreSQL (Keycloak) ────────────────────────────────
   postgres:
-    image: postgres:16
+    image: postgres:16.8
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -110,7 +110,7 @@ services:
   keycloak:
     # Official Keycloak container image:
     # https://www.keycloak.org/server/containers
-    image: quay.io/keycloak/keycloak:26.2
+    image: quay.io/keycloak/keycloak:26.2.5
     restart: unless-stopped
     depends_on:
       postgres:

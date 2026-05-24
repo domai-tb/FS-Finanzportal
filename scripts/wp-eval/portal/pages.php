@@ -50,8 +50,10 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
     update_option('page_on_front', $dashboard_id);
     update_option('page_for_posts', 0);
     
-    $global_beschluesse = fsfp_cli_unified_overview_page('beschluss', $fachschaften);
-    $global_zahlungen = fsfp_cli_unified_overview_page('zahlung', $fachschaften);
+    $global_beschluesse = fsfp_cli_unified_overview_page('beschluss', $fachschaften)
+        . fsfp_cli_budget_report($fachschaften);
+    $global_zahlungen = fsfp_cli_payment_queue_links(home_url('/dashboard/zahlungsanweisungen/'), true)
+        . fsfp_cli_unified_overview_page('zahlung', $fachschaften);
     
     foreach ($fachschaften as $fachschaft) {
         $slug = sanitize_key($fachschaft['slug']);
@@ -98,6 +100,7 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
         $zahlung_list = '<!-- wp:heading --><h2>Zahlungsanweisungen</h2><!-- /wp:heading -->'
             . fsfp_cli_workflow_overview('zahlung')
             . fsfp_cli_list_intro('zahlung')
+            . fsfp_cli_payment_queue_links(home_url("/dashboard/{$slug}/zahlungsanweisungen/"))
             . fsfp_cli_members_access_block($zahlung_view_only_roles, fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', $slug, false, true))
             . fsfp_cli_members_access_block(
                 $zahlung_create_roles,
@@ -110,7 +113,7 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
             )
             . fsfp_cli_members_access_block(
                 $zahlung_review_roles,
-                '<div class="fsfp-action-panel"><h3>AStA-Prüfung</h3><p>Rückfrage stellen oder Zahlung als ausgeführt markieren.</p></div>'
+                '<div class="fsfp-action-panel"><h3>AStA-Prüfung</h3><p>Rückfrage stellen oder Zahlung als ausgeführt markieren.</p><p>' . fsfp_cli_mailto_link('Fachschaft per E-Mail kontaktieren', "Rückfrage zu Zahlungsanweisung {$label}") . '</p></div>'
             )
             . fsfp_cli_members_access_block(["fs_{$slug}_finance", ...fsfp_cli_global_beschluss_edit_roles()], fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', $slug, true, false, 'Bearbeiten / Einreichen / Stornieren'))
             . fsfp_cli_members_access_block(['asta_finance', 'asta_reviewer'], fsfp_cli_list_shortcode($types['zahlung'], 'zahlung', $slug, true, false, 'Rückfrage / Ausgeführt'));

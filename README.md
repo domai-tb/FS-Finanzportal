@@ -89,7 +89,7 @@ setup-generated scoped Pods row shortcodes in the browser; this is not a shared
 runtime data model. Workflow records use published WordPress post status so Pods
 frontend lists can render them; the workflow lifecycle is stored in the dedicated status
 fields. Beschlüsse use `Entwurf`, `Genehmigt`, and `Abgelehnt`;
-Zahlungsanweisungen use `Entwurf`, `Eingereicht`, `Rückfrage`, `Stoniert`, and
+Zahlungsanweisungen use `Entwurf`, `Eingereicht`, `Rückfrage`, `Storniert`, and
 `Ausgeführt`. Zahlungsanweisungen reference a scoped Beschluss relationship
 field; Beschluss detail pages list every Zahlungsanweisung that points back to
 that Beschluss. Beschluss and Zahlungsanweisung detail pages show `Betrag
@@ -99,7 +99,8 @@ The visible workflow log uses explicit Pods fields such as `decided_at`,
 role-gated workflow forms. Detail pages render those fields as one
 `Workflow-Log` table at the end of each entry page. Workflow post-meta changes
 are still audited in the background by Meta Ledger. The generated
-lists use consistent client-side search, status filtering, and pagination to keep the portal
+lists use consistent client-side search, status filtering, pagination, action
+queues, and CSV export to keep the portal
 usable as the number of Beschlüsse grows. Direct public record routes are
 disabled for the scoped post types, and the frontend pages remain protected by
 Members permissions. Item editing stays inside the portal on dedicated
