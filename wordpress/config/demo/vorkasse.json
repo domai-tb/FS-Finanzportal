@@ -1,6 +1,6 @@
 [
   {
-    "slug": "demo-vorkasse-barkasse-sommerfest",
+    "slug": "demo-vorkasse-informatik-barkasse-sommerfest",
     "title": "Demo: Vorkasse Barkasse Sommerfest",
     "fachschaft": "informatik",
     "betrag": "120.00",
@@ -12,7 +12,97 @@
     "author": "demo-fachschaft"
   },
   {
-    "slug": "demo-vorkasse-ueberweisung-reservierung",
+    "slug": "demo-vorkasse-informatik-transportkosten",
+    "title": "Demo: Vorkasse Transportkosten",
+    "fachschaft": "informatik",
+    "betrag": "60.00",
+    "verwendungszweck": "Fahrtkosten für Materialtransport zum Veranstaltungsort.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Anbieter verlangt Vorkasse für Transportdienst.",
+    "empfaenger_details": "Transport & Co, IBAN DE445566778899, Musterbank",
+    "status": "approved",
+    "author": "demo-informatik"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-catering-anfang",
+    "title": "Demo: Vorkasse Catering-Anzahlung",
+    "fachschaft": "informatik",
+    "betrag": "200.00",
+    "verwendungszweck": "Anzahlung fuer Catering beim Semesterauftakt.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Caterer benötigt Anzahlung zur Reservierung.",
+    "status": "submitted",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-flyer-druck",
+    "title": "Demo: Vorkasse Flyer-Druck",
+    "fachschaft": "informatik",
+    "betrag": "85.00",
+    "verwendungszweck": "Druck von Flyern für Erstsemesterveranstaltung.",
+    "vorkasse_method": "paypal",
+    "vorkasse_begruendung": "Kleiner Anbieter akzeptiert nur PayPal-Vorkasse.",
+    "status": "draft",
+    "author": "demo-marketing"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-kaution-raum",
+    "title": "Demo: Vorkasse Raumkaution",
+    "fachschaft": "informatik",
+    "betrag": "300.00",
+    "verwendungszweck": "Kaution für externe Veranstaltungsräume.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Vermieter verlangt Kaution vor Veranstaltungsdatum.",
+    "empfaenger_details": "Eventraum GmbH, IBAN DE550011223344, Sparkasse",
+    "status": "submitted",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-supplies-online",
+    "title": "Demo: Vorkasse Online-Bestellung Verbrauchsmaterial",
+    "fachschaft": "informatik",
+    "betrag": "47.90",
+    "verwendungszweck": "Online-Bestellung Kabel und Adapter.",
+    "vorkasse_method": "card",
+    "vorkasse_begruendung": "Kleiner Händler verlangt Vorkasse bei internationaler Lieferung.",
+    "status": "approved",
+    "author": "demo-informatik"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-werbematerial",
+    "title": "Demo: Vorkasse Werbematerial",
+    "fachschaft": "informatik",
+    "betrag": "140.00",
+    "verwendungszweck": "Banner und Roll-Ups fÃ¼r Messeauftritt.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Grafikdienstleister verlangt Teilzahlung.",
+    "status": "draft",
+    "author": "demo-marketing"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-ehrenamt-spesen",
+    "title": "Demo: Vorkasse Ehrenamtliche Spesen",
+    "fachschaft": "informatik",
+    "betrag": "55.00",
+    "verwendungszweck": "Vorschuss fÃ¼r Fahrtkosten Ehrenamtlicher.",
+    "vorkasse_method": "bar",
+    "vorkasse_begruendung": "Schnelle Auszahlung vor Veranstaltungsbeginn gewünscht.",
+    "status": "submitted",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-vorkasse-informatik-technik-pauschale",
+    "title": "Demo: Vorkasse Technik-Pauschale",
+    "fachschaft": "informatik",
+    "betrag": "99.99",
+    "verwendungszweck": "Pauschale fÃ¼r externen Technikdienst.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Dienstleister bucht Termin nach Zahlung.",
+    "status": "approved",
+    "author": "demo-it"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-reservierung",
     "title": "Demo: Vorkasse Reservierungsgebuehr",
     "fachschaft": "maschinenbau",
     "betrag": "250.00",
@@ -22,5 +112,148 @@
     "empfaenger_details": "Muster GmbH, IBAN DE00100100100000000000, Musterbank",
     "status": "draft",
     "author": "demo-maschinenbau-finance"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-werkzeug-bestellung",
+    "title": "Demo: Vorkasse Werkzeugbestellung",
+    "fachschaft": "maschinenbau",
+    "betrag": "410.00",
+    "verwendungszweck": "Bestellung spezieller Werkzeuge fÃ¼r Projektarbeiten.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Lieferant verlangt Vorkasse bei Sonderanfertigungen.",
+    "status": "submitted",
+    "author": "demo-werkstatt"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-prototyp-material",
+    "title": "Demo: Vorkasse Prototyp-Material",
+    "fachschaft": "maschinenbau",
+    "betrag": "620.00",
+    "verwendungszweck": "Material fuer Prototypenbau.",
+    "vorkasse_method": "card",
+    "vorkasse_begruendung": "Schnellbeschaffung fuer Semesterprojekt.",
+    "status": "approved",
+    "author": "demo-maschinenbau"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-busfahrt",
+    "title": "Demo: Vorkasse Busfahrt Exkursion",
+    "fachschaft": "maschinenbau",
+    "betrag": "340.00",
+    "verwendungszweck": "Anzahlung fuer Bus zur Betriebsbesichtigung.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Busunternehmen verlangt Anzahlung.",
+    "status": "submitted",
+    "author": "demo-exkursion"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-sicherheitskleidung",
+    "title": "Demo: Vorkasse Sicherheitskleidung",
+    "fachschaft": "maschinenbau",
+    "betrag": "150.00",
+    "verwendungszweck": "Kaution fuer Sicherheitskleidung und PSA.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Hersteller verlangt Vorkasse bei Kleinserien.",
+    "status": "draft",
+    "author": "demo-mb"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-3d-filament",
+    "title": "Demo: Vorkasse 3D-Filament",
+    "fachschaft": "maschinenbau",
+    "betrag": "89.90",
+    "verwendungszweck": "Filamentbestellung fuer Modellbau.",
+    "vorkasse_method": "card",
+    "vorkasse_begruendung": "Kleiner Lieferant hat Vorauszahlungsoption.",
+    "status": "approved",
+    "author": "demo-makerspace"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-lieferant-teilzahlung",
+    "title": "Demo: Vorkasse Teilzahlung Lieferant",
+    "fachschaft": "maschinenbau",
+    "betrag": "320.00",
+    "verwendungszweck": "Teilzahlung fuer Sonderanfertigung.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Hersteller verlangt 50% Anzahlung.",
+    "status": "submitted",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-vorkasse-maschinenbau-werkstatt-reparatur",
+    "title": "Demo: Vorkasse Werkstatt Reparatur",
+    "fachschaft": "maschinenbau",
+    "betrag": "220.00",
+    "verwendungszweck": "Reparaturkosten fuer Werkstattgeraet.",
+    "vorkasse_method": "card",
+    "vorkasse_begruendung": "Eilreparatur erforderlich; Vorauszahlung empfohlen.",
+    "status": "approved",
+    "author": "demo-werkstatt"
+  },
+  {
+    "slug": "demo-vorkasse-philosophie-raummiete-podium",
+    "title": "Demo: Vorkasse Raummiete Podiumsdiskussion",
+    "fachschaft": "philosophie",
+    "betrag": "180.00",
+    "verwendungszweck": "Anzahlung fuer Raummiete bei Veranstaltungsort.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Veranstaltungsort verlangt Anzahlung zur Bestätigung.",
+    "status": "submitted",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-vorkasse-philosophie-gastvortrag-honorar",
+    "title": "Demo: Vorkasse Gastvortrag Honorar",
+    "fachschaft": "philosophie",
+    "betrag": "300.00",
+    "verwendungszweck": "Vorauskasse fuer Honorar und Reisekosten.",
+    "vorkasse_method": "banktransfer",
+    "vorkasse_begruendung": "Gastredner bittet um Teilzahlung vorab.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-vorkasse-philosophie-podcast-studio",
+    "title": "Demo: Vorkasse Podcast-Studio",
+    "fachschaft": "philosophie",
+    "betrag": "120.00",
+    "verwendungszweck": "Miete Studio fuer Podcast-Aufnahme.",
+    "vorkasse_method": "card",
+    "vorkasse_begruendung": "Kleiner Anbieter nimmt nur Kartenzahlung im Voraus.",
+    "status": "draft",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-vorkasse-philosophie-buecher-bestellung",
+    "title": "Demo: Vorkasse Buecherbestellung",
+    "fachschaft": "philosophie",
+    "betrag": "210.00",
+    "verwendungszweck": "Bestellung mehrerer Buchtitel fuer Seminar.",
+    "vorkasse_method": "paypal",
+    "vorkasse_begruendung": "Buchhandlung bietet Rabatt bei Vorauszahlung.",
+    "status": "submitted",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-vorkasse-philosophie-kaffee-und-snacks",
+    "title": "Demo: Vorkasse Kaffee und Snacks",
+    "fachschaft": "philosophie",
+    "betrag": "55.00",
+    "verwendungszweck": "Verpflegung fuer interne Sitzungen.",
+    "vorkasse_method": "bar",
+    "vorkasse_begruendung": "Schnellbedarf vor Veranstaltungsbeginn.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-vorkasse-philosophie-exkursion-eintritt",
+    "title": "Demo: Vorkasse Exkursion Eintritt",
+    "fachschaft": "philosophie",
+    "betrag": "95.00",
+    "verwendungszweck": "Eintrittsgebuehren fuer Museumsausflug.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Museum verlangt Vorkasse fuer Gruppenbuchung.",
+    "status": "submitted",
+    "author": "demo-philosophie"
   }
 ]

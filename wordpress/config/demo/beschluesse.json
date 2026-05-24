@@ -1,6 +1,6 @@
 [
   {
-    "slug": "demo-beschluss-technik-budget",
+    "slug": "demo-beschluss-informatik-sommerfest-technik",
     "title": "Demo: Technik-Budget Sommerfest",
     "fachschaft": "informatik",
     "beschlussdatum": "2026-05-02",
@@ -10,17 +10,191 @@
     "author": "demo-fachschaft"
   },
   {
-    "slug": "demo-beschluss-erstsemester-material",
-    "title": "Demo: Erstsemester-Material",
+    "slug": "demo-beschluss-informatik-raum-miete",
+    "title": "Demo: Raummiete für Workshop",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2026-04-10",
+    "betrag": "420.00",
+    "zweck_beschreibung": "Miete eines Seminarraums für studentischen Workshop.",
+    "status": "approved",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-beschluss-informatik-konsumables",
+    "title": "Demo: Verbrauchsmaterialien Semesterstart",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2026-03-15",
+    "betrag": "95.20",
+    "zweck_beschreibung": "Kauf von Stiften, Papier und Moderationsmaterial.",
+    "status": "approved",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-beschluss-informatik-stipendium-idee",
+    "title": "Demo: Förderung Studierender (Ideenskizze)",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2026-02-01",
+    "betrag": "1200.00",
+    "zweck_beschreibung": "Vorschlag zur Kurzfrist-Förderung studentischer Projekte.",
+    "status": "draft",
+    "notes": "Benötigt genauere Förderrichtlinien.",
+    "author": "demo-informatik"
+  },
+  {
+    "slug": "demo-beschluss-informatik-server-upgrade",
+    "title": "Demo: Server-Hardware Upgrade",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2025-11-20",
+    "betrag": "2300.00",
+    "zweck_beschreibung": "Austausch alter Serverkomponenten für Lehrbetrieb.",
+    "status": "approved",
+    "author": "demo-it"
+  },
+  {
+    "slug": "demo-beschluss-informatik-reisekosten-konferenz",
+    "title": "Demo: Reisekosten Konferenz",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2026-01-18",
+    "betrag": "540.50",
+    "zweck_beschreibung": "Teilnahme an studentischer Forschungskonferenz.",
+    "status": "submitted",
+    "workflow_note": "Reisekostenerstattung beantragt.",
+    "author": "demo-informatik"
+  },
+  {
+    "slug": "demo-beschluss-informatik-software-licenses",
+    "title": "Demo: Software-Lizenzen für Labor",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2025-09-05",
+    "betrag": "1299.99",
+    "zweck_beschreibung": "Lizenzen für Lehr- und Forschungssoftware.",
+    "status": "approved",
+    "author": "demo-it"
+  },
+  {
+    "slug": "demo-beschluss-informatik-marketing-erstsemester",
+    "title": "Demo: Marketing Erstsemester",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2026-04-01",
+    "betrag": "210.00",
+    "zweck_beschreibung": "Flyer und Online-Kampagne für Begrüßung.",
+    "status": "approved",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-beschluss-informatik-bewirtung-abend",
+    "title": "Demo: Bewirtung für Abendveranstaltung",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2026-03-28",
+    "betrag": "310.75",
+    "zweck_beschreibung": "Getränke und Snacks für Networking-Event.",
+    "status": "approved",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-beschluss-informatik-fahrtkosten-exkursion",
+    "title": "Demo: Fahrtkosten Exkursion",
+    "fachschaft": "informatik",
+    "beschlussdatum": "2025-10-12",
+    "betrag": "480.00",
+    "zweck_beschreibung": "Busmiete und Eintrittsgelder für Exkursion.",
+    "status": "approved",
+    "author": "demo-informatik"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-werkzeug",
+    "title": "Demo: Anschaffung Werkzeuge",
     "fachschaft": "maschinenbau",
     "beschlussdatum": "2026-05-02",
     "betrag": "320.50",
-    "zweck_beschreibung": "Druck- und Materialkosten für die Erstsemesterbegrüßung.",
+    "zweck_beschreibung": "Neues Werkzeug für Labor und Projekte.",
     "status": "approved",
     "author": "demo-asta"
   },
   {
-    "slug": "demo-beschluss-literatur-philosophie",
+    "slug": "demo-beschluss-maschinenbau-messgeraete",
+    "title": "Demo: Messgeräte Kalibrierung",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2026-04-22",
+    "betrag": "680.00",
+    "zweck_beschreibung": "Kalibrierung und Wartung von Messgeräten.",
+    "status": "approved",
+    "author": "demo-labor"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-projekttage",
+    "title": "Demo: Projekttage Material",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2026-03-02",
+    "betrag": "410.00",
+    "zweck_beschreibung": "Materialkosten für studentische Projekttage.",
+    "status": "approved",
+    "author": "demo-maschinenbau"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-arbeitskleidung",
+    "title": "Demo: Arbeitskleidung Praktika",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2025-12-15",
+    "betrag": "980.00",
+    "zweck_beschreibung": "Sicherheitskleidung für Praktikumsplätze.",
+    "status": "approved",
+    "author": "demo-maschinenbau"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-exkursion-betrieb",
+    "title": "Demo: Exkursion zu Betrieb",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2026-02-28",
+    "betrag": "760.00",
+    "zweck_beschreibung": "Bus und Führungsgebühren für Werkbesichtigung.",
+    "status": "submitted",
+    "workflow_note": "Genehmigung durch Beirat ausstehend.",
+    "author": "demo-mb"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-laborumbau",
+    "title": "Demo: Umbau Studentisches Labor",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2025-09-01",
+    "betrag": "5400.00",
+    "zweck_beschreibung": "Anpassungen und Sicherheitsupgrades im Labor.",
+    "status": "approved",
+    "author": "demo-asta"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-3d-druck",
+    "title": "Demo: 3D-Druck Materialien",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2026-01-10",
+    "betrag": "230.25",
+    "zweck_beschreibung": "Filamente und Wartung für 3D-Drucker.",
+    "status": "approved",
+    "author": "demo-makerspace"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-fortbildung",
+    "title": "Demo: Fortbildung Studentische Hilfskräfte",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2026-04-05",
+    "betrag": "125.00",
+    "zweck_beschreibung": "Teilnahmegebühren für Sicherheitsschulung.",
+    "status": "draft",
+    "notes": "Budgetwunsch prüfen.",
+    "author": "demo-mb"
+  },
+  {
+    "slug": "demo-beschluss-maschinenbau-werkstatt-inventar",
+    "title": "Demo: Inventar Ergänzung Werkstatt",
+    "fachschaft": "maschinenbau",
+    "beschlussdatum": "2025-11-02",
+    "betrag": "415.40",
+    "zweck_beschreibung": "Regale und Kleinteile für Werkstatt.",
+    "status": "approved",
+    "author": "demo-maschinenbau"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-lesekreis-literatur",
     "title": "Demo: Literatur für Lesekreis",
     "fachschaft": "philosophie",
     "beschlussdatum": "2026-04-20",
@@ -28,6 +202,87 @@
     "zweck_beschreibung": "Anschaffung von Literatur für einen studentischen Lesekreis.",
     "status": "draft",
     "notes": "Bitte Lieferant und genaue Ausgabe ergänzen.",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-gastvortrag",
+    "title": "Demo: Gastvortrag Honorar",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2026-03-12",
+    "betrag": "300.00",
+    "zweck_beschreibung": "Honorar und Reisekosten für Gastredner.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-kaffee-treffen",
+    "title": "Demo: Kaffee für Diskussionsrunde",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2026-02-25",
+    "betrag": "45.60",
+    "zweck_beschreibung": "Getränke und Snacks für interne Treffen.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-studio-miete",
+    "title": "Demo: Studio-Miete für Podcast",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2025-12-05",
+    "betrag": "220.00",
+    "zweck_beschreibung": "Miete eines kleinen Studios zur Aufnahme einer Podcast-Reihe.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-archiv-besuch",
+    "title": "Demo: Exkursion Archiv",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2025-10-18",
+    "betrag": "150.00",
+    "zweck_beschreibung": "Fahrtkosten und Eintritt für Archivbesuch.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-workshop-publikation",
+    "title": "Demo: Workshop und Publikation",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2026-01-30",
+    "betrag": "620.00",
+    "zweck_beschreibung": "Druckkosten und Material für studentische Publikation.",
+    "status": "submitted",
+    "workflow_note": "Druckangebot ausstehend.",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-filmabend-lizenz",
+    "title": "Demo: Filmabend Lizenzgebühr",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2026-04-02",
+    "betrag": "95.00",
+    "zweck_beschreibung": "Lizenzgebühr für Filmvorführung im Seminarraum.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-begruessungspaket",
+    "title": "Demo: Begrüßungspaket Erstsemester",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2026-03-01",
+    "betrag": "270.00",
+    "zweck_beschreibung": "Kleine Willkommenspakete für neue Studierende.",
+    "status": "approved",
+    "author": "demo-philosophie"
+  },
+  {
+    "slug": "demo-beschluss-philosophie-reisekosten-tagung",
+    "title": "Demo: Reisekosten Tagung",
+    "fachschaft": "philosophie",
+    "beschlussdatum": "2025-11-25",
+    "betrag": "410.00",
+    "zweck_beschreibung": "Unterstützung zur Teilnahme an akademischer Tagung.",
+    "status": "approved",
     "author": "demo-philosophie"
   }
 ]
