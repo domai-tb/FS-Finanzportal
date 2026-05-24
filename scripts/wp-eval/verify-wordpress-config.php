@@ -282,7 +282,7 @@ foreach ($fachschaften as $fachschaft) {
 
         $required_fields = $kind === 'beschluss'
             ? ['fachschaft', 'beschlussdatum', 'betrag', 'zweck_beschreibung', 'beschluss_status', 'decided_at', 'decided_by', 'decision_note', 'belege', 'notes']
-            : ['fachschaft', 'betrag', 'verwendungszweck', 'zahlungs_status', 'submitted_at', 'reviewed_at', 'reviewed_by', 'executed_at', 'executed_by', 'workflow_note', 'belege', 'beschluss_ref', 'notes'];
+            : ['fachschaft', 'zahlungstyp', 'betrag', 'verwendungszweck', 'vorkasse_method', 'vorkasse_begruendung', 'empfaenger_details', 'zahlungs_status', 'submitted_at', 'reviewed_at', 'reviewed_by', 'executed_at', 'executed_by', 'workflow_note', 'belege', 'beschluss_ref', 'notes'];
 
         if ($kind === 'beschluss') {
             $legacy_field = method_exists($pods_api, 'load_field')
@@ -330,9 +330,36 @@ foreach ($fachschaften as $fachschaft) {
                     || ($field['pick_object'] ?? '') !== 'post_type'
                     || ($field['pick_val'] ?? '') !== $types['beschluss']
                     || ($field['pick_where'] ?? '') !== "beschluss_status.meta_value = 'approved'"
-                    || (int) ($field['required'] ?? 0) !== 1
+                    || (int) ($field['required'] ?? 0) !== 0
                 ) {
-                    fs_finanzportal_verify_fail("Pods field beschluss_ref on {$post_type} must be a required relationship to {$types['beschluss']}.");
+                    fs_finanzportal_verify_fail("Pods field beschluss_ref on {$post_type} must be an optional relationship to {$types['beschluss']} for Vorkasse support.");
+                }
+            }
+
+            if ($field_name === 'zahlungstyp') {
+                $actual_values = fs_finanzportal_pick_values($field);
+                sort($actual_values);
+                if (($field['type'] ?? '') !== 'pick'
+                    || (int) ($field['required'] ?? 0) !== 1
+                    || $actual_values !== ['standard', 'vorkasse']
+                ) {
+                    fs_finanzportal_verify_fail("Pods field zahlungstyp on {$post_type} must be a required standard/vorkasse pick field.");
+                }
+            }
+
+            if ($field_name === 'vorkasse_method') {
+                $actual_values = fs_finanzportal_pick_values($field);
+                sort($actual_values);
+                if (($field['type'] ?? '') !== 'pick'
+                    || $actual_values !== ['bar', 'ueberweisung']
+                ) {
+                    fs_finanzportal_verify_fail("Pods field vorkasse_method on {$post_type} must be a bar/ueberweisung pick field.");
+                }
+            }
+
+            if (in_array($field_name, ['vorkasse_begruendung', 'empfaenger_details'], true)) {
+                if (($field['type'] ?? '') !== 'paragraph') {
+                    fs_finanzportal_verify_fail("Pods field {$field_name} on {$post_type} must be a paragraph field.");
                 }
             }
         }
@@ -783,10 +810,11 @@ if (!str_contains($informatik_finance_content, 'Demo: Technik-Budget Sommerfest'
     fs_finanzportal_verify_fail('Informatik finance must see Informatik Beschluss entries on the frontend list.');
 }
 if (str_contains($informatik_finance_content, 'wp-admin')
-    || !str_contains($informatik_finance_content, '/dashboard/informatik/beschluss-bearbeiten/?id=')
     || !str_contains($informatik_finance_content, 'return_to=%2Fdashboard%2Finformatik%2Fbeschluesse%2F')
     || !str_contains($informatik_finance_content, 'Neu erstellen')
-    || !str_contains($informatik_finance_content, 'Bearbeiten')
+    || !$beschluss_edit_template
+    || !str_contains($beschluss_edit_template->post_content, '/dashboard/informatik/beschluss-bearbeiten/?id=')
+    || !str_contains($beschluss_edit_template->post_content, 'Bearbeiten')
 ) {
     fs_finanzportal_verify_fail('Informatik finance must see frontend create/edit controls on the frontend list.');
 }
@@ -873,6 +901,11 @@ if (!$zahlung_workflow_template
 if (!str_contains($informatik_zahlungen_detail_page->post_content, '/dashboard/informatik/beschluss-details/?id={@beschluss_ref.ID}')
     || !str_contains($informatik_zahlungen_detail_page->post_content, '{@beschluss_ref.post_title}')
     || !str_contains($informatik_zahlungen_detail_page->post_content, '{@beschluss_ref.betrag}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'Zahlungsanweisung auf Vorkasse')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, '{@vorkasse_method}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, '{@vorkasse_begruendung}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, '{@empfaenger_details}')
+    || !str_contains($informatik_zahlungen_detail_page->post_content, 'compare="NOT IN"]<dt>Beschluss')
     || !str_contains($informatik_zahlungen_detail_page->post_content, 'Betrag Zahlungsanweisung')
     || !str_contains($informatik_zahlungen_detail_page->post_content, 'Betrag Beschlossen')
     || !str_contains($informatik_zahlungen_detail_page->post_content, 'Betrag Offen')
@@ -885,6 +918,7 @@ if (!str_contains($informatik_zahlungen_detail_page->post_content, '/dashboard/i
 $zahlung_budget_template = get_page_by_path('fsfp-za_informatik-budget-source', OBJECT, '_pods_template');
 if (!$zahlung_budget_template
     || !str_contains($zahlung_budget_template->post_content, 'data-payment-id="{@ID}"')
+    || !str_contains($zahlung_budget_template->post_content, 'data-payment-type="{@zahlungstyp}"')
     || !str_contains($zahlung_budget_template->post_content, 'data-beschluss-id="{@beschluss_ref.ID}"')
     || !str_contains($zahlung_budget_template->post_content, 'data-payment-amount="{@betrag}"')
 ) {
@@ -905,11 +939,19 @@ if (!str_contains($informatik_zahlung_create_page->post_content, 'fsfp-payment-f
     || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-form-page--zahlung')
     || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-form-shell')
     || !str_contains($informatik_zahlung_create_page->post_content, 'Zahlungsanweisung vorbereiten')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'zahlungstyp')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'vorkasse_method')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'vorkasse_begruendung')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'empfaenger_details')
     || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-payment-budget-guard')
     || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-beschluss-budget-source')
     || !str_contains($informatik_zahlung_create_page->post_content, 'fsfp-budget-source')
     || !str_contains($informatik_zahlung_create_page->post_content, 'data-form-errors')
-    || !str_contains($informatik_zahlung_create_page->post_content, 'Bitte wähle einen genehmigten Beschluss aus.')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'Bitte wähle für Standard-Zahlungsanweisungen einen genehmigten Beschluss aus.')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'Bitte wähle eine Vorkasse-Methode aus.')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'syncVorkasseFields')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'beschluss.value=""')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'isVorkasse()')
     || !str_contains($informatik_zahlung_create_page->post_content, 'pods_field_${name}')
     || !str_contains($informatik_zahlung_create_page->post_content, 'fsfpSanityBound')
     || !str_contains($informatik_zahlung_create_page->post_content, '[250,750,1500,3000]')
@@ -917,6 +959,7 @@ if (!str_contains($informatik_zahlung_create_page->post_content, 'fsfp-payment-f
     || !str_contains($informatik_zahlung_create_page->post_content, 'data-budget-warning')
     || !str_contains($informatik_zahlung_create_page->post_content, 'Der Betrag überschreitet das offene Budget')
     || !str_contains($informatik_zahlung_create_page->post_content, 'submit.disabled=true')
+    || !str_contains($informatik_zahlung_create_page->post_content, 'row.dataset.paymentType==="vorkasse"')
     || !str_contains($informatik_zahlung_create_page->post_content, 'where="beschluss_status.meta_value = \'approved\'"')
 ) {
     fs_finanzportal_verify_fail('Payment create page must include the frontend budget guard and approved Beschluss budget source.');
@@ -1006,6 +1049,24 @@ foreach ($fachschaften as $fachschaft) {
     if (count($duplicates) !== 1) {
         fs_finanzportal_verify_fail("Demo Fachschaft {$slug} is not idempotent; found " . count($duplicates) . ' records.');
     }
+}
+
+$demo_vorkasse = get_page_by_path('demo-vorkasse-barkasse-sommerfest', OBJECT, 'za_informatik');
+if (!$demo_vorkasse
+    || get_post_meta($demo_vorkasse->ID, 'zahlungstyp', true) !== 'vorkasse'
+    || get_post_meta($demo_vorkasse->ID, 'vorkasse_method', true) !== 'bar'
+    || get_post_meta($demo_vorkasse->ID, 'beschluss_ref', true) !== ''
+) {
+    fs_finanzportal_verify_fail('Demo Vorkasse payment must be seeded as a Vorkasse record without Beschluss reference.');
+}
+
+$demo_vorkasse_transfer = get_page_by_path('demo-vorkasse-ueberweisung-reservierung', OBJECT, 'za_maschinenbau');
+if (!$demo_vorkasse_transfer
+    || get_post_meta($demo_vorkasse_transfer->ID, 'zahlungstyp', true) !== 'vorkasse'
+    || get_post_meta($demo_vorkasse_transfer->ID, 'vorkasse_method', true) !== 'ueberweisung'
+    || get_post_meta($demo_vorkasse_transfer->ID, 'empfaenger_details', true) === ''
+) {
+    fs_finanzportal_verify_fail('Demo bank-transfer Vorkasse payment must include recipient details.');
 }
 
 foreach (['demo-fachschaft', 'demo-informatik-reader', 'demo-informatik-reader2', 'demo-maschinenbau-finance', 'demo-maschinenbau-reader', 'demo-maschinenbau-reader2', 'demo-philosophie-finance', 'demo-philosophie', 'demo-philosophie-reader2', 'demo-asta', 'demo-reviewer', 'demo-auditor', 'demo-unassigned'] as $login) {

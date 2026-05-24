@@ -46,8 +46,20 @@ Rules:
 
 ## Zahlungsanweisungen
 
-Zahlungsanweisungen are the payment workflow objects. They must reference one
-approved Beschluss before they can be submitted.
+Zahlungsanweisungen are the payment workflow objects. They use one shared status
+workflow for two payment types:
+
+| Type | Meaning | Beschluss reference |
+|------|---------|---------------------|
+| `standard` | Normal payment against an approved Beschluss and invoice context | Required |
+| `vorkasse` | Advance payment without a Beschluss reference | Empty |
+
+Vorkasse payments also record a delivery method:
+
+| Method | Meaning |
+|--------|---------|
+| `bar` | Cash disbursement |
+| `ueberweisung` | Bank transfer; recipient/account details are required in the generated form |
 
 Allowed Zahlungsanweisung statuses:
 
@@ -65,8 +77,12 @@ Rules:
 - Fachschaft finance may edit a Zahlungsanweisung while it is not
   `Ausgeführt`.
 - Fachschaft finance may submit a prepared Zahlungsanweisung with `Einreichen`.
-- `Einreichen` is only allowed if the Zahlungsanweisung references a Beschluss
-  with status `Genehmigt`.
+- `Einreichen` for standard payments is only allowed if the Zahlungsanweisung
+  references a Beschluss with status `Genehmigt`.
+- `Einreichen` for Vorkasse payments is allowed once the amount, purpose,
+  delivery method, and Vorkasse justification are complete. Bank-transfer
+  Vorkasse also needs recipient/account details.
+- Vorkasse payments are not included in Beschluss open-budget calculations.
 - Fachschaft finance may set `Stoniert` before the Zahlungsanweisung is
   `Ausgeführt`.
 - Zahlungsanweisungen cannot be rejected. Clarification happens through

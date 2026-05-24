@@ -254,6 +254,20 @@ function fsfp_cli_normalize_workflow_statuses(array $fachschaften): void
                 }
             }
         }
+
+        $zahlung_ids = get_posts([
+            'post_type' => $types['zahlung'],
+            'post_status' => 'any',
+            'fields' => 'ids',
+            'posts_per_page' => -1,
+        ]);
+
+        foreach ($zahlung_ids as $post_id) {
+            $zahlungstyp = (string) get_post_meta((int) $post_id, 'zahlungstyp', true);
+            if (!in_array($zahlungstyp, ['standard', 'vorkasse'], true)) {
+                update_post_meta((int) $post_id, 'zahlungstyp', 'standard');
+            }
+        }
     }
 }
 
@@ -601,6 +615,10 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
 {
     $date_th = $kind === 'beschluss' ? '<th>Datum</th>' : '';
     $date_td = $kind === 'beschluss' ? '<td>{@beschlussdatum}</td>' : '';
+    $type_th = $kind === 'zahlung' ? '<th>Typ</th>' : '';
+    $type_td = $kind === 'zahlung'
+        ? '<td><span class="fsfp-payment-type-badge">{@zahlungstyp}</span>[if field="zahlungstyp" value="vorkasse"] <span class="fsfp-payment-method-badge">{@vorkasse_method}</span>[/if]</td>'
+        : '';
     $status_field = $kind === 'beschluss' ? 'beschluss_status' : 'zahlungs_status';
     $detail_slug = $kind === 'beschluss' ? 'beschluss-details' : 'zahlungsanweisung-details';
     $edit_slug = $kind === 'beschluss' ? 'beschluss-bearbeiten' : 'zahlungsanweisung-bearbeiten';
@@ -622,6 +640,7 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
         . '<td>{@ID}</td>'
         . '<td>{@post_title}</td>'
         . '<td>{@' . $status_field . '}</td>'
+        . $type_td
         . $date_td
         . '<td>{@betrag}</td>'
         . '<td>' . $actions . '</td>'
@@ -672,7 +691,7 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
         . '<label>Suche <input type="search" data-scoped-search placeholder="Titel, ID, Betrag"></label>'
         . '<label>Status <select data-scoped-status>' . fsfp_cli_status_select_options($kind) . '</select></label>'
         . '</div>'
-        . '<table class="fsfp-table fsfp-scoped-table"><thead><tr><th>ID</th><th>Titel</th><th>Status</th>' . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-scoped-body>'
+        . '<table class="fsfp-table fsfp-scoped-table"><thead><tr><th>ID</th><th>Titel</th><th>Status</th>' . $type_th . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-scoped-body>'
         . '<!-- wp:shortcode -->' . "\n"
         . '[pods name="' . esc_attr($post_type) . '" template="' . esc_attr($template_slug) . '" expires="-1" limit="-1" shortcodes="1"]' . "\n"
         . '<!-- /wp:shortcode -->' . "\n"
@@ -689,6 +708,9 @@ function fsfp_cli_unified_overview_source(string $post_type, string $kind, strin
     $detail_slug = $kind === 'beschluss' ? 'beschluss-details' : 'zahlungsanweisung-details';
     $edit_slug = $kind === 'beschluss' ? '' : 'zahlungsanweisung-bearbeiten';
     $date_td = $kind === 'beschluss' ? '<td>{@beschlussdatum}</td>' : '';
+    $type_td = $kind === 'zahlung'
+        ? '<td><span class="fsfp-payment-type-badge">{@zahlungstyp}</span>[if field="zahlungstyp" value="vorkasse"] <span class="fsfp-payment-method-badge">{@vorkasse_method}</span>[/if]</td>'
+        : '';
     $base_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/';
     $list_url = $kind === 'beschluss' ? '/dashboard/beschluesse/' : '/dashboard/zahlungsanweisungen/';
     $return_to = fsfp_cli_return_to_url($list_url);
@@ -704,6 +726,7 @@ function fsfp_cli_unified_overview_source(string $post_type, string $kind, strin
         . '<td>{@ID}</td>'
         . '<td>{@post_title}</td>'
         . '<td>{@' . $status_field . '}</td>'
+        . $type_td
         . $date_td
         . '<td>{@betrag}</td>'
         . '<td>' . $actions . '</td>'
@@ -723,6 +746,7 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
     $table_id = 'fsfp-unified-' . ($is_beschluss ? 'beschluesse' : 'zahlungen');
     $title = $is_beschluss ? 'Alle Beschlüsse' : 'Alle Zahlungsanweisungen';
     $date_th = $is_beschluss ? '<th>Datum</th>' : '';
+    $type_th = $is_beschluss ? '' : '<th>Typ</th>';
 
     $fachschaft_select = '<option value="">Alle Fachschaften</option>';
     $sources = '';
@@ -765,7 +789,7 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
         . '<label>Status <select data-unified-status>' . fsfp_cli_status_select_options($kind) . '</select></label>'
         . '<label>Fachschaft <select data-unified-fachschaft>' . $fachschaft_select . '</select></label>'
         . '</div>'
-        . '<table class="fsfp-table fsfp-unified-table"><thead><tr><th>Fachschaft</th><th>ID</th><th>Titel</th><th>Status</th>' . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-unified-body>' . $sources . '</tbody></table>'
+        . '<table class="fsfp-table fsfp-unified-table"><thead><tr><th>Fachschaft</th><th>ID</th><th>Titel</th><th>Status</th>' . $type_th . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-unified-body>' . $sources . '</tbody></table>'
         . '<p class="fsfp-unified-empty" data-unified-empty hidden>Keine passenden Einträge gefunden.</p>'
         . '<div class="fsfp-unified-pagination"><button type="button" data-unified-prev>Zurück</button><span data-unified-page></span><button type="button" data-unified-next>Weiter</button></div>'
         . $script
@@ -811,7 +835,7 @@ function fsfp_cli_budget_source_shortcode(string $zahlung_post_type): string
     fsfp_cli_upsert_pods_template(
         $template_slug,
         $template_slug,
-        '<span class="fsfp-budget-source-row" data-payment-id="{@ID}" data-beschluss-id="{@beschluss_ref.ID}" data-payment-amount="{@betrag}"></span>' . "\n"
+        '<span class="fsfp-budget-source-row" data-payment-id="{@ID}" data-payment-type="{@zahlungstyp}" data-beschluss-id="{@beschluss_ref.ID}" data-payment-amount="{@betrag}"></span>' . "\n"
     );
 
     return '<div class="fsfp-budget-source" hidden>' . "\n"
@@ -847,7 +871,7 @@ function fsfp_cli_budget_script(): string
         . 'var budgetEl=root.querySelector("[data-budget-amount]");var openEl=root.querySelector("[data-open-budget]");var paidEl=root.querySelector("[data-paid-budget]");if(!budgetEl||!openEl){return;}'
         . 'var budget=parseAmount(budgetEl.textContent);var marker=root.querySelector("[data-current-beschluss-id]");var current=marker?marker.dataset.currentBeschlussId:"";var paid=0;'
         . 'root.querySelectorAll(".fsfp-related-zahlung-amount").forEach(function(el){paid+=parseAmount(el.textContent);});'
-        . 'root.querySelectorAll(".fsfp-budget-source-row").forEach(function(el){if(!current||el.dataset.beschlussId===current){paid+=parseAmount(el.dataset.paymentAmount||el.textContent);}});'
+        . 'root.querySelectorAll(".fsfp-budget-source-row").forEach(function(el){if(el.dataset.paymentType==="vorkasse"){return;}if(!current||el.dataset.beschlussId===current){paid+=parseAmount(el.dataset.paymentAmount||el.textContent);}});'
         . 'if(paidEl){paidEl.textContent=formatAmount(paid);}'
         . 'openEl.textContent=formatAmount(budget-paid);'
         . '})();</script>';
@@ -865,12 +889,13 @@ function fsfp_cli_payment_budget_guard(string $beschluss_post_type, string $zahl
         . 'function formatAmount(value){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(value);}'
         . 'var budgets={};root.querySelectorAll(".fsfp-beschluss-budget-row").forEach(function(row){budgets[row.dataset.beschlussId]=parseAmount(row.dataset.budgetAmount||row.textContent);});'
         . 'var params=new URLSearchParams(window.location.search);var currentId=params.get("id")||"";'
-        . 'var spent={};root.querySelectorAll(".fsfp-budget-source-row").forEach(function(row){var id=row.dataset.beschlussId||"";if(!id||row.dataset.paymentId===currentId){return;}spent[id]=(spent[id]||0)+parseAmount(row.dataset.paymentAmount||row.textContent);});'
+        . 'var spent={};root.querySelectorAll(".fsfp-budget-source-row").forEach(function(row){var id=row.dataset.beschlussId||"";if(row.dataset.paymentType==="vorkasse"||!id||row.dataset.paymentId===currentId){return;}spent[id]=(spent[id]||0)+parseAmount(row.dataset.paymentAmount||row.textContent);});'
         . 'function field(name){return root.querySelector(`[name="${name}"],[name="pods_field_${name}"],[name$="[${name}]"],[id$="-${name}"],[id$="-pods-field-${name.replace(/_/g,"-")}"],[id$="_${name}"]`);}'
-        . 'function bind(){var amount=field("betrag");var beschluss=field("beschluss_ref");var warning=root.querySelector("[data-budget-warning]");var submit=root.querySelector("button[type=submit],input[type=submit]");if(!amount||!beschluss||!warning||!submit){return false;}if(amount.dataset.fsfpBudgetBound==="1"){return true;}amount.dataset.fsfpBudgetBound="1";'
+        . 'function bind(){var amount=field("betrag");var beschluss=field("beschluss_ref");var zahlungstyp=field("zahlungstyp");var warning=root.querySelector("[data-budget-warning]");var submit=root.querySelector("button[type=submit],input[type=submit]");if(!amount||!beschluss||!warning||!submit){return false;}if(amount.dataset.fsfpBudgetBound==="1"){return true;}amount.dataset.fsfpBudgetBound="1";'
         . 'function selectedBeschluss(){var value=beschluss.value||"";if(value){return value;}var option=beschluss.options&&beschluss.selectedIndex>=0?beschluss.options[beschluss.selectedIndex]:null;return option?option.value:"";}'
-        . 'function validate(){var id=selectedBeschluss();var requested=parseAmount(amount.value);var budget=budgets[id]||0;var used=spent[id]||0;var open=budget-used;var over=id&&requested>open+0.005;if(over){warning.hidden=false;warning.textContent="Der Betrag überschreitet das offene Budget dieses Beschlusses ("+formatAmount(open)+" verfügbar).";submit.disabled=true;}else{warning.hidden=true;warning.textContent="";submit.disabled=false;}}'
-        . 'amount.addEventListener("input",validate);beschluss.addEventListener("change",validate);validate();return true;}'
+        . 'function isVorkasse(){return zahlungstyp&&(zahlungstyp.value||"")==="vorkasse";}'
+        . 'function validate(){if(isVorkasse()){warning.hidden=true;warning.textContent="";submit.disabled=false;return;}var id=selectedBeschluss();var requested=parseAmount(amount.value);var budget=budgets[id]||0;var used=spent[id]||0;var open=budget-used;var over=id&&requested>open+0.005;if(over){warning.hidden=false;warning.textContent="Der Betrag überschreitet das offene Budget dieses Beschlusses ("+formatAmount(open)+" verfügbar).";submit.disabled=true;}else{warning.hidden=true;warning.textContent="";submit.disabled=false;}}'
+        . 'amount.addEventListener("input",validate);beschluss.addEventListener("change",validate);if(zahlungstyp){zahlungstyp.addEventListener("change",validate);}validate();return true;}'
         . 'if(!bind()){var observer=new MutationObserver(function(){if(bind()){observer.disconnect();}});observer.observe(root,{childList:true,subtree:true});setTimeout(bind,500);setTimeout(bind,1500);}'
         . '})();</script>'
         . '</div>';
@@ -918,6 +943,7 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
     $status_field = $kind === 'beschluss' ? 'beschluss_status' : 'zahlungs_status';
     $description_field = $kind === 'beschluss' ? 'zweck_beschreibung' : 'verwendungszweck';
     $reference_markup = '';
+    $payment_type_markup = '';
     $related_markup = '';
     $amount_markup = '<dt>Betrag Zahlungsanweisung</dt><dd>{@betrag}</dd>';
 
@@ -930,10 +956,18 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
 
     if ($kind === 'zahlung') {
         $beschluss_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/beschluss-details/?id={@beschluss_ref.ID}';
-        $reference_markup = '<dt>Beschluss</dt><dd><a href="' . $beschluss_url . '">{@beschluss_ref.post_title}</a></dd>'
+        $payment_type_markup = '<dt>Typ</dt><dd>[if field="zahlungstyp" value="vorkasse"]Zahlungsanweisung auf Vorkasse[/if][if field="zahlungstyp" value="vorkasse" compare="NOT IN"]Standard Zahlungsanweisung[/if]</dd>'
+            . '[if field="zahlungstyp" value="vorkasse"]'
+            . '<dt>Methode</dt><dd>{@vorkasse_method}</dd>'
+            . '<dt>Begründung für Vorkasse</dt><dd>{@vorkasse_begruendung}</dd>'
+            . '[if field="vorkasse_method" value="ueberweisung"]<dt>Empfänger Details / Kontoverbindung</dt><dd>{@empfaenger_details}</dd>[/if]'
+            . '[/if]';
+        $reference_markup = '[if field="zahlungstyp" value="vorkasse" compare="NOT IN"]'
+            . '<dt>Beschluss</dt><dd><a href="' . $beschluss_url . '">{@beschluss_ref.post_title}</a></dd>'
             . '<dt>Betrag Beschlossen</dt><dd data-budget-amount>{@beschluss_ref.betrag}</dd>'
             . '<dt>Betrag Offen</dt><dd data-open-budget>Wird berechnet...</dd>'
-            . '<dd hidden data-current-beschluss-id="{@beschluss_ref.ID}"></dd>';
+            . '<dd hidden data-current-beschluss-id="{@beschluss_ref.ID}"></dd>'
+            . '[/if]';
         if ($related_zahlung_type !== '') {
             $related_markup = fsfp_cli_budget_source_shortcode($related_zahlung_type);
         }
@@ -948,6 +982,7 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
         . '<dt>Interne ID</dt><dd>{@ID}</dd>'
         . '<dt>Status</dt><dd>{@' . $status_field . '}</dd>'
         . $date_markup
+        . $payment_type_markup
         . $amount_markup
         . '<dt>Beschreibung</dt><dd>{@' . $description_field . '}</dd>'
         . $reference_markup
@@ -1024,7 +1059,10 @@ function fsfp_cli_form_sanity_guard(string $kind): string
             'post_title' => 'Bitte gib einen Titel an.',
             'betrag' => 'Der Betrag muss größer als 0 sein.',
             'verwendungszweck' => 'Bitte beschreibe den Verwendungszweck etwas genauer.',
-            'beschluss_ref' => 'Bitte wähle einen genehmigten Beschluss aus.',
+            'beschluss_ref' => 'Bitte wähle für Standard-Zahlungsanweisungen einen genehmigten Beschluss aus.',
+            'vorkasse_method' => 'Bitte wähle eine Vorkasse-Methode aus.',
+            'vorkasse_begruendung' => 'Bitte begründe, warum Vorkasse notwendig ist.',
+            'empfaenger_details' => 'Bitte gib für Überweisungen die Empfänger- oder Kontodaten an.',
         ];
 
     return '<div class="fsfp-form-errors" data-form-errors hidden></div>'
@@ -1032,13 +1070,17 @@ function fsfp_cli_form_sanity_guard(string $kind): string
         . 'var root=document.currentScript.closest(".fsfp-form-page,.fsfp-payment-form-scope");if(!root){return;}'
         . 'var messages=' . wp_json_encode($rules, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ';'
         . 'function field(name){return root.querySelector(`[name="${name}"],[name="pods_field_${name}"],[name$="[${name}]"],[id$="-${name}"],[id$="-pods-field-${name.replace(/_/g,"-")}"],[id$="_${name}"]`);}'
+        . 'function fieldWrap(el){return el?(el.closest(".pods-field")||el.closest(".pods-form-ui-row")||el.closest(".form-field")||el.parentElement):null;}'
         . 'function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}'
         . 'function textValue(el){return el?(el.value||"").trim():"";}'
         . 'function isFutureDate(value){if(!value){return false;}var date=new Date(value+"T00:00:00");if(Number.isNaN(date.getTime())){return false;}var today=new Date();today.setHours(0,0,0,0);return date>today;}'
         . 'function setInvalid(el,invalid){if(!el){return;}el.classList.toggle("fsfp-field-invalid",invalid);}'
-        . 'function validate(show){var errors=[];Object.keys(messages).forEach(function(name){var el=field(name);var invalid=false;if(name==="betrag"){invalid=parseAmount(textValue(el))<=0;}else if(name==="beschlussdatum"){invalid=!textValue(el)||isFutureDate(textValue(el));}else if(name==="post_title"){invalid=textValue(el).length<3;}else if(name==="zweck_beschreibung"||name==="verwendungszweck"){invalid=textValue(el).length<10;}else if(name==="beschluss_ref"){invalid=!textValue(el);}setInvalid(el,invalid);if(invalid){errors.push(messages[name]);}});var box=root.querySelector("[data-form-errors]");if(box){box.hidden=errors.length===0;box.innerHTML=errors.map(function(error){return "<p>"+error+"</p>";}).join("");}return errors.length===0;}'
+        . 'function isVorkasse(){var el=field("zahlungstyp");return el&&(el.value||"")==="vorkasse";}'
+        . 'function isTransfer(){var el=field("vorkasse_method");return el&&(el.value||"")==="ueberweisung";}'
+        . 'function syncVorkasseFields(){var vorkasse=isVorkasse();["vorkasse_method","vorkasse_begruendung"].forEach(function(name){var el=field(name),wrap=fieldWrap(el);if(wrap){wrap.hidden=!vorkasse;}if(el){el.required=vorkasse;}});var details=field("empfaenger_details"),detailsWrap=fieldWrap(details),showDetails=vorkasse&&isTransfer();if(detailsWrap){detailsWrap.hidden=!showDetails;}if(details){details.required=showDetails;}var beschluss=field("beschluss_ref"),beschlussWrap=fieldWrap(beschluss);if(beschlussWrap){beschlussWrap.hidden=vorkasse;}if(beschluss){beschluss.required=!vorkasse;if(vorkasse){beschluss.value="";}}}'
+        . 'function validate(show){syncVorkasseFields();var errors=[];Object.keys(messages).forEach(function(name){var el=field(name);var invalid=false;if(name==="betrag"){invalid=parseAmount(textValue(el))<=0;}else if(name==="beschlussdatum"){invalid=!textValue(el)||isFutureDate(textValue(el));}else if(name==="post_title"){invalid=textValue(el).length<3;}else if(name==="zweck_beschreibung"||name==="verwendungszweck"){invalid=textValue(el).length<10;}else if(name==="beschluss_ref"){invalid=!isVorkasse()&&!textValue(el);}else if(name==="vorkasse_method"){invalid=isVorkasse()&&!textValue(el);}else if(name==="vorkasse_begruendung"){invalid=isVorkasse()&&textValue(el).length<10;}else if(name==="empfaenger_details"){invalid=isVorkasse()&&isTransfer()&&textValue(el).length<5;}setInvalid(el,invalid);if(invalid){errors.push(messages[name]);}});var box=root.querySelector("[data-form-errors]");if(box){box.hidden=errors.length===0;box.innerHTML=errors.map(function(error){return "<p>"+error+"</p>";}).join("");}return errors.length===0;}'
         . 'root.addEventListener("input",function(){validate(false);});root.addEventListener("change",function(){validate(false);});'
-        . 'function enhanceFields(){Object.keys(messages).forEach(function(name){var el=field(name);if(!el||el.dataset.fsfpSanityBound==="1"){return;}el.dataset.fsfpSanityBound="1";el.required=true;if(name==="betrag"){el.setAttribute("min","0.01");}if(name==="post_title"){el.setAttribute("minlength","3");}if(name==="zweck_beschreibung"||name==="verwendungszweck"){el.setAttribute("minlength","10");}});validate(false);}'
+        . 'function enhanceFields(){Object.keys(messages).forEach(function(name){var el=field(name);if(!el||el.dataset.fsfpSanityBound==="1"){return;}el.dataset.fsfpSanityBound="1";if(name!=="beschluss_ref"&&name!=="vorkasse_method"&&name!=="vorkasse_begruendung"&&name!=="empfaenger_details"){el.required=true;}if(name==="betrag"){el.setAttribute("min","0.01");}if(name==="post_title"){el.setAttribute("minlength","3");}if(name==="zweck_beschreibung"||name==="verwendungszweck"||name==="vorkasse_begruendung"){el.setAttribute("minlength","10");}});syncVorkasseFields();validate(false);}'
         . 'var form=root.querySelector("form");if(form){form.addEventListener("submit",function(event){enhanceFields();if(!validate(true)){event.preventDefault();event.stopImmediatePropagation();}},true);}'
         . 'enhanceFields();[250,750,1500,3000].forEach(function(delay){setTimeout(enhanceFields,delay);});'
         . '})();</script>';
@@ -1056,6 +1098,16 @@ function fsfp_cli_form_page(string $kind, string $post_type, string $fields, str
         . fsfp_cli_form_sanity_guard($kind)
         . $after
         . '</div></div></div><!-- /wp:group -->';
+}
+
+function fsfp_cli_payment_type_lock_script(bool $always = false): string
+{
+    return '<script>(function(){'
+        . 'var root=document.currentScript.closest(".fsfp-action-panel");if(!root){return;}'
+        . 'function field(name){return root.querySelector(`[name="${name}"],[name="pods_field_${name}"],[name$="[${name}]"],[id$="-${name}"],[id$="-pods-field-${name.replace(/_/g,"-")}"],[id$="_${name}"]`);}'
+        . 'function lock(){var status=field("zahlungs_status");var shouldLock=' . ($always ? 'true' : '((status&&(status.value||"")!=="draft"))') . ';["zahlungstyp","vorkasse_method","vorkasse_begruendung","empfaenger_details"].forEach(function(name){var el=field(name);if(el){el.readOnly=shouldLock;el.disabled=shouldLock;}});}'
+        . 'lock();[250,750,1500].forEach(function(delay){setTimeout(lock,delay);});'
+        . '})();</script>';
 }
 
 function fsfp_cli_edit_form_page(string $post_type, string $fields, string $list_url): string
@@ -1279,9 +1331,9 @@ foreach ($fachschaften as $fachschaft) {
     $zahlung_detail_id = fsfp_cli_upsert_page('zahlungsanweisung-details', 'Zahlungsanweisung Details', fsfp_cli_detail_page_content($types['zahlung'], 'zahlung', home_url("/dashboard/{$slug}/zahlungsanweisungen/"), $slug, $types['zahlung']), $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($zahlung_detail_id, $fachschaft_view_roles);
 
-    $zahlung_create_fields = 'post_title,betrag,verwendungszweck,belege,beschluss_ref,notes';
-    $zahlung_finance_fields = 'post_title,betrag,verwendungszweck,zahlungs_status,submitted_at,belege,beschluss_ref,workflow_note,notes';
-    $zahlung_reviewer_fields = 'zahlungs_status,reviewed_at,reviewed_by,executed_at,executed_by,workflow_note,notes';
+    $zahlung_create_fields = 'post_title,zahlungstyp,betrag,verwendungszweck,beschluss_ref,vorkasse_method,vorkasse_begruendung,empfaenger_details,belege,notes';
+    $zahlung_finance_fields = 'post_title,zahlungstyp,betrag,verwendungszweck,zahlungs_status,submitted_at,beschluss_ref,vorkasse_method,vorkasse_begruendung,empfaenger_details,belege,workflow_note,notes';
+    $zahlung_reviewer_fields = 'zahlungstyp,vorkasse_method,vorkasse_begruendung,empfaenger_details,zahlungs_status,reviewed_at,reviewed_by,executed_at,executed_by,workflow_note,notes';
     $zahlung_create_content = fsfp_cli_form_page(
         'zahlung',
         $types['zahlung'],
@@ -1299,13 +1351,14 @@ foreach ($fachschaften as $fachschaft) {
             'fields' => $zahlung_finance_fields,
             'label' => 'Änderungen speichern',
             'guard' => fsfp_cli_form_sanity_guard('zahlung'),
-            'after' => fsfp_cli_payment_budget_guard($types['beschluss'], $types['zahlung']),
+            'after' => fsfp_cli_payment_budget_guard($types['beschluss'], $types['zahlung']) . fsfp_cli_payment_type_lock_script(),
         ],
         [
             'roles' => ['asta_finance', 'asta_reviewer'],
             'title' => 'AStA: Rückfrage oder Ausführung',
             'fields' => $zahlung_reviewer_fields,
             'label' => 'Workflowstatus speichern',
+            'after' => fsfp_cli_payment_type_lock_script(true),
         ],
     ], home_url("/dashboard/{$slug}/zahlungsanweisungen/")), $fachschaft_id);
     fsfp_cli_restrict_page_to_roles($zahlung_edit_id, $zahlung_edit_roles);
@@ -1368,6 +1421,9 @@ body .entry-content > .alignwide { max-width: min(1200px, calc(100vw - 3rem)); }
 .fsfp-status-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0.75rem 0 1rem; }
 .fsfp-status-flow__badge { display: inline-flex; align-items: center; min-height: 2rem; padding: 0.25rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #1f2937; font-weight: 600; font-size: 0.9rem; }
 .fsfp-status-flow__arrow { color: #64748b; font-weight: 700; }
+.fsfp-payment-type-badge,
+.fsfp-payment-method-badge { display: inline-flex; align-items: center; min-height: 1.6rem; padding: 0.15rem 0.5rem; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #334155; font-size: 0.85rem; font-weight: 700; }
+.fsfp-payment-method-badge { background: #ecfdf5; border-color: #99f6e4; color: #115e59; }
 .fsfp-action-panel { margin: 1rem 0; padding: 1rem; border: 1px solid #d8dee4; border-radius: 6px; background: #f8fafc; }
 .fsfp-action-panel h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
 .fsfp-action-panel p { margin: 0.25rem 0 0.75rem; color: #475569; }
@@ -1471,6 +1527,45 @@ foreach ($items as $item) {
     }
 
     update_post_meta($post_id, 'beschluss_status', $item['status'] ?? 'draft');
+}
+
+$vorkasse_file = fsfp_cli_config_path('demo/vorkasse.json');
+if (is_readable($vorkasse_file)) {
+    $vorkasse_items = json_decode(file_get_contents($vorkasse_file), true);
+    if (!is_array($vorkasse_items)) {
+        WP_CLI::error('Invalid demo Vorkasse JSON.');
+    }
+
+    foreach ($vorkasse_items as $item) {
+        $fachschaft = sanitize_key($item['fachschaft'] ?? '');
+        if ($fachschaft === '') {
+            WP_CLI::error('Demo Vorkasse payment is missing Fachschaft.');
+        }
+
+        $post_type = fsfp_cli_workflow_types($fachschaft)['zahlung'];
+        $author = get_user_by('login', $item['author'] ?? 'demo-fachschaft');
+        $post_id = fsfp_cli_upsert_post($post_type, $item['slug'], $item['title'], [
+            'post_author' => $author ? $author->ID : 1,
+            'post_status' => 'publish',
+        ]);
+
+        foreach ([
+            'fachschaft',
+            'betrag',
+            'verwendungszweck',
+            'vorkasse_method',
+            'vorkasse_begruendung',
+            'empfaenger_details',
+            'workflow_note',
+            'notes',
+        ] as $field) {
+            update_post_meta($post_id, $field, $item[$field] ?? '');
+        }
+
+        update_post_meta($post_id, 'zahlungstyp', 'vorkasse');
+        update_post_meta($post_id, 'zahlungs_status', $item['status'] ?? 'draft');
+        delete_post_meta($post_id, 'beschluss_ref');
+    }
 }
 
 fsfp_cli_publish_existing_workflow_posts($fachschaften);

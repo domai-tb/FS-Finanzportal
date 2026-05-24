@@ -68,21 +68,30 @@ normal portal workflow.
 
 Create forms do not expose status fields. New records use the domain default
 `Entwurf`; later status changes are made through the role-gated edit/workflow
-forms. Zahlungsanweisungen reference a scoped Beschluss relationship field
-instead of free text. The setup and UI expect this Beschluss to be `Genehmigt`.
+forms. Zahlungsanweisungen have a `zahlungstyp`: `standard` or `vorkasse`.
+Standard payments reference a scoped Beschluss relationship field instead of
+free text. The setup and UI expect this Beschluss to be `Genehmigt`. Vorkasse
+payments do not reference a Beschluss; they require a delivery method
+(`bar` or `ueberweisung`) and a Vorkasse justification. Bank-transfer Vorkasse
+payments also require recipient/account details.
+
 The generated forms run basic browser-side checks before submit: non-empty
 titles, positive amounts, useful purpose text, Beschluss dates that are not in
-the future, and a selected approved Beschluss for Zahlungsanweisungen.
-Zahlungsanweisung detail pages link to the related Beschluss detail page and
-show the Beschluss budget beside the Zahlungsanweisung amount. Beschluss detail
-pages derive the reverse view from the same relationship and list all related
-Zahlungsanweisungen. Both detail views calculate `Betrag Offen` as `Betrag
-Beschlossen` minus the sum of all related Zahlungsanweisung amounts.
-Zahlungsanweisung create and Fachschaft edit forms include the same generated
-budget source data and disable submission when the requested amount exceeds the
-currently open budget. This is a portal UX guard; hard transition and budget
-enforcement would require a future server-side mechanism that still respects
-the no-runtime-custom-PHP architecture constraint.
+the future, a selected approved Beschluss for standard Zahlungsanweisungen, and
+the conditional Vorkasse fields for advance payments. Zahlungsanweisung detail
+pages link to the related Beschluss detail page and show the Beschluss budget
+beside the Zahlungsanweisung amount for standard payments. For Vorkasse
+payments, the detail page shows type, method, justification, and transfer
+details where applicable. Beschluss detail pages derive the reverse view from
+the Beschluss relationship and list all related standard Zahlungsanweisungen.
+Both standard detail views calculate `Betrag Offen` as `Betrag Beschlossen`
+minus the sum of all related standard Zahlungsanweisung amounts.
+Zahlungsanweisung create and Fachschaft edit forms include generated budget
+source data and disable submission when a standard payment exceeds the
+currently open budget. Vorkasse payments skip this budget guard because they
+are not tied to a Beschluss. This is a portal UX guard; hard transition and
+budget enforcement would require a future server-side mechanism that still
+respects the no-runtime-custom-PHP architecture constraint.
 
 The visible workflow history is modeled as domain data, not as a generic audit
 log. Beschluss workflow forms expose `decided_at`, `decided_by`, and

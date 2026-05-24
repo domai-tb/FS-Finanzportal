@@ -44,6 +44,6 @@ $WP eval-file /scripts/wp-eval/import-scoped-pods.php "${WP_CONFIG_DIR}/fachscha
 $WP rewrite flush --hard >/dev/null
 
 echo "==> Ensuring roles, admin dashboard page, users, Fachschaften, and demo Beschluesse..."
-$WP eval-file /scripts/wp-eval/ensure-portal-content.php
+$WP eval 'include "/scripts/wp-eval/ensure-portal-content.php";'
 
 echo "==> WordPress portal configuration complete."

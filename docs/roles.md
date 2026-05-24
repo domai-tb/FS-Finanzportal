@@ -54,8 +54,10 @@ Finance roles receive the reader capabilities plus:
 
 AStA finance and reviewer roles receive read capabilities for scoped Beschlüsse
 but write capabilities only for scoped Zahlungsanweisungen. They cannot modify
-Beschlüsse through the generated portal workflow. WordPress administrators and
-`portal_admin` keep full setup/admin access.
+Beschlüsse through the generated portal workflow. The same Zahlungsanweisung
+capabilities cover both standard payments and Vorkasse payments; Vorkasse is a
+field-level payment type, not a separate role or post type. WordPress
+administrators and `portal_admin` keep full setup/admin access.
 
 The global overview pages under `/dashboard/beschluesse/` and
 `/dashboard/zahlungsanweisungen/` are AStA/admin work queues. They combine

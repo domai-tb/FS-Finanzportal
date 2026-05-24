@@ -30,6 +30,7 @@ Browser
 | `wordpress/config/fachschaften.json` | Single source for Fachschaft slugs and labels |
 | `wordpress/config/oidc/openid-connect-generic.settings.json` | OIDC plugin defaults |
 | `wordpress/config/demo/beschluesse.json` | Seed Beschluss records |
+| `wordpress/config/demo/vorkasse.json` | Seed Vorkasse Zahlungsanweisung records |
 
 The old runtime mu-plugin table shortcode has been removed. WordPress no longer
 mounts `wordpress/mu-plugins` into the running container.
@@ -68,8 +69,12 @@ Important Zahlungsanweisung fields:
 | Field | Purpose |
 |-------|---------|
 | `fachschaft` | Stored Fachschaft slug for reporting and imports |
+| `zahlungstyp` | Payment type: `standard` or `vorkasse` |
 | `betrag` | Amount in EUR |
 | `verwendungszweck` | Payment purpose |
+| `vorkasse_method` | Vorkasse delivery method: `bar` or `ueberweisung` |
+| `vorkasse_begruendung` | Justification for an advance payment |
+| `empfaenger_details` | Recipient/account details for Vorkasse bank transfers |
 | `zahlungs_status` | Workflow status: `draft`, `submitted`, `correction_requested`, `cancelled`, `executed` |
 | `submitted_at` | Date set by the user when submitting the payment |
 | `reviewed_at` | Date set by the reviewer when checking the payment |
@@ -78,15 +83,20 @@ Important Zahlungsanweisung fields:
 | `executed_by` | Person/role recorded by the user for execution |
 | `workflow_note` | Workflow note for submission, review, correction, or execution |
 | `belege` | Attachments |
-| `beschluss_ref` | Required single relationship to a scoped Beschluss |
+| `beschluss_ref` | Single relationship to a scoped Beschluss; required by generated forms for standard payments and empty for Vorkasse |
 | `notes` | Notes and correction requests |
 
-Beschluss detail pages derive the reverse one-to-many view from this
-`beschluss_ref` relationship and list all related Zahlungsanweisungen. The
-Beschluss record itself does not store a separate payment-reference text field.
-The generated detail pages calculate the open budget in the browser from the
-rendered Pods data: `Betrag Offen = Betrag Beschlossen - Summe der zugehörigen
-Zahlungsanweisungen`.
+Standard Zahlungsanweisungen reference an approved Beschluss through
+`beschluss_ref`. Vorkasse Zahlungsanweisungen use the same scoped payment post
+types and workflow statuses but have `zahlungstyp = vorkasse`, no Beschluss
+reference, a delivery method, and a justification. Beschluss detail pages derive
+the reverse one-to-many view from the `beschluss_ref` relationship and list all
+related standard Zahlungsanweisungen. The Beschluss record itself does not
+store a separate payment-reference text field. The generated detail pages
+calculate the open budget in the browser from the rendered Pods data:
+`Betrag Offen = Betrag Beschlossen - Summe der zugehörigen Standard-Zahlungsanweisungen`.
+Vorkasse records are skipped by the generated budget source data because they
+are not tied to a Beschluss budget.
 The visible workflow log is built from these domain fields and rendered as one
 table at the end of each detail page through named Pods templates. Meta Ledger
 remains background audit storage, not the user-facing workflow history.

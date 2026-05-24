@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "demo-vorkasse-barkasse-sommerfest",
+    "title": "Demo: Vorkasse Barkasse Sommerfest",
+    "fachschaft": "informatik",
+    "betrag": "120.00",
+    "verwendungszweck": "Bargeld-Vorschuss fuer kurzfristige Einkaeufe beim Sommerfest.",
+    "vorkasse_method": "bar",
+    "vorkasse_begruendung": "Kleine Ausgaben fuer Verbrauchsmaterial fallen am Veranstaltungstag spontan an und koennen nicht einzeln vorab per Rechnung belegt werden.",
+    "status": "submitted",
+    "workflow_note": "Vorkasse zur Pruefung eingereicht.",
+    "author": "demo-fachschaft"
+  },
+  {
+    "slug": "demo-vorkasse-ueberweisung-reservierung",
+    "title": "Demo: Vorkasse Reservierungsgebuehr",
+    "fachschaft": "maschinenbau",
+    "betrag": "250.00",
+    "verwendungszweck": "Reservierungsgebuehr fuer einen externen Veranstaltungsraum.",
+    "vorkasse_method": "ueberweisung",
+    "vorkasse_begruendung": "Der Anbieter bestaetigt die Buchung erst nach Zahlung der Reservierungsgebuehr.",
+    "empfaenger_details": "Muster GmbH, IBAN DE00100100100000000000, Musterbank",
+    "status": "draft",
+    "author": "demo-maschinenbau-finance"
+  }
+]
