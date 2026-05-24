@@ -48,6 +48,10 @@ query string, for example
 `/dashboard/informatik/beschluss-bearbeiten/?id=123`.
 Direct public record routes for the workflow post types are disabled, so users
 view records through the restricted portal pages.
+Generated page fragments, form field lists, portal CSS, and reusable browser
+scripts are setup inputs under `wordpress/config/portal/`. The WP-CLI setup
+modules render those files into WordPress pages and options; no runtime custom
+PHP is loaded for these workflows.
 
 ## Create and Edit
 

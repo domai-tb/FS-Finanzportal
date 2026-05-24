@@ -28,12 +28,20 @@ Browser
 | `compose.yaml` | Service definitions, volumes, health checks, and setup mounts |
 | `keycloak/realms/fs-finance-realm.json` | Baseline Keycloak realm import |
 | `wordpress/config/fachschaften.json` | Single source for Fachschaft slugs and labels |
+| `wordpress/config/portal/pods.json` | Human-editable scoped Pods field schema and workflow pick values |
+| `wordpress/config/portal/forms.json` | Human-editable frontend Pods form field lists |
+| `wordpress/config/portal/roles.json` | Human-editable role grouping and portal access defaults |
+| `wordpress/config/portal/templates/` | Setup-rendered block/HTML fragments for generated portal pages |
+| `wordpress/config/portal/assets/` | Setup-injected portal CSS and browser scripts |
 | `wordpress/config/oidc/openid-connect-generic.settings.json` | OIDC plugin defaults |
 | `wordpress/config/demo/beschluesse.json` | Seed Beschluss records |
 | `wordpress/config/demo/vorkasse.json` | Seed Vorkasse Zahlungsanweisung records |
 
 The old runtime mu-plugin table shortcode has been removed. WordPress no longer
 mounts `wordpress/mu-plugins` into the running container.
+Project-specific PHP remains setup-only: WP-CLI entrypoints under
+`scripts/wp-eval/` load small modules from `lib/`, `pods/`, and `portal/` to
+translate the editable config files into WordPress database state.
 
 ## Content Model
 

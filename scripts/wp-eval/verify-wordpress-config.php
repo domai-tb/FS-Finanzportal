@@ -3,6 +3,11 @@
  * Deep verification for the automated WordPress prototype configuration.
  */
 
+require_once __DIR__ . '/lib/config.php';
+require_once __DIR__ . '/lib/naming.php';
+require_once __DIR__ . '/lib/roles.php';
+require_once __DIR__ . '/lib/workflow.php';
+
 function fs_finanzportal_verify_fail(string $message): void
 {
     WP_CLI::error($message);
@@ -10,41 +15,32 @@ function fs_finanzportal_verify_fail(string $message): void
 
 function fs_finanzportal_config_path(string $relative_path): string
 {
-    return rtrim((string) getenv('WP_CONFIG_DIR'), '/') . '/' . ltrim($relative_path, '/');
+    return fsfp_cli_config_path($relative_path);
 }
 
 function fs_finanzportal_load_fachschaften(): array
 {
-    $config = json_decode(file_get_contents(fs_finanzportal_config_path('fachschaften.json')), true);
-
-    if (!is_array($config) || empty($config['fachschaften']) || !is_array($config['fachschaften'])) {
-        fs_finanzportal_verify_fail('Fachschaften config is invalid.');
-    }
-
-    return $config['fachschaften'];
+    return fsfp_cli_load_fachschaften();
 }
 
 function fs_finanzportal_workflow_types(string $slug): array
 {
-    return [
-        'beschluss' => "b_{$slug}",
-        'zahlung' => "za_{$slug}",
-    ];
+    return fsfp_cli_workflow_types($slug);
 }
 
 function fs_finanzportal_capability_type(string $post_type): string
 {
-    return "{$post_type}_record";
+    return fsfp_cli_capability_type($post_type);
 }
 
 function fs_finanzportal_global_access_roles(): array
 {
-    return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer', 'auditor'];
+    return fsfp_cli_global_access_roles();
 }
 
 function fs_finanzportal_global_overview_roles(): array
 {
-    return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer'];
+    return fsfp_cli_global_overview_roles();
 }
 
 function fs_finanzportal_global_edit_roles(): array
@@ -54,17 +50,17 @@ function fs_finanzportal_global_edit_roles(): array
 
 function fs_finanzportal_global_beschluss_edit_roles(): array
 {
-    return ['administrator', 'portal_admin'];
+    return fsfp_cli_global_beschluss_edit_roles();
 }
 
 function fs_finanzportal_global_zahlung_edit_roles(): array
 {
-    return ['administrator', 'portal_admin', 'asta_finance', 'asta_reviewer'];
+    return fsfp_cli_global_zahlung_edit_roles();
 }
 
 function fs_finanzportal_admin_edit_access_cap(): string
 {
-    return 'fsfp_use_wp_admin';
+    return fsfp_cli_admin_edit_access_cap();
 }
 
 function fs_finanzportal_fachschaft_access_roles(string $slug): array
@@ -88,36 +84,17 @@ function fs_finanzportal_fachschaft_view_roles(string $slug): array
 
 function fs_finanzportal_read_caps(string $capability_type): array
 {
-    $plural = "{$capability_type}s";
-
-    return [
-        'read',
-        "read_{$capability_type}",
-        "read_private_{$plural}",
-    ];
+    return fsfp_cli_read_caps($capability_type);
 }
 
 function fs_finanzportal_edit_caps(string $capability_type): array
 {
-    $plural = "{$capability_type}s";
-
-    return array_merge(fs_finanzportal_read_caps($capability_type), [
-        "edit_{$capability_type}",
-        "edit_{$plural}",
-        "edit_others_{$plural}",
-        "edit_private_{$plural}",
-        "edit_published_{$plural}",
-        "publish_{$plural}",
-    ]);
+    return fsfp_cli_edit_caps($capability_type);
 }
 
 function fs_finanzportal_expected_status_values(string $kind): array
 {
-    if ($kind === 'beschluss') {
-        return ['draft', 'approved', 'rejected'];
-    }
-
-    return ['draft', 'submitted', 'correction_requested', 'cancelled', 'executed'];
+    return fsfp_cli_workflow_status_values($kind);
 }
 
 function fs_finanzportal_pick_values($field): array

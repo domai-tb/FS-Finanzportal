@@ -25,12 +25,13 @@ FS-Finanzportal is a low-code, Docker-based WordPress workflow prototype designe
 
 ### 3. Setup Automation (`scripts/`)
 - **`setup.sh`:** Orchestrates the orchestration: spinning up Docker networks, waiting for health checks, executing Keycloak configurations, and bootstrapping WP configurations.
-- **`wp-eval/*.php`:** These are PHP files, but they are *not* runtime codebase. They are strictly executed via WP-CLI inside a one-shot `wp-cli` container payload to populate the Pods data structure, set Members page access configs, and spawn demo content.
+- **`wp-eval/*.php`:** These are PHP files, but they are *not* runtime codebase. The public entrypoints load setup-only modules from `scripts/wp-eval/lib/`, `scripts/wp-eval/portal/`, and `scripts/wp-eval/pods/`.
+- **Human-editable portal config:** Adjust Pods fields, role defaults, form field lists, generated templates, CSS, and setup-injected JS in `wordpress/config/portal/` before changing PHP orchestration code.
 
 ## Strict Development Rules & Constraints
 
 1. **Do Not Write Runtime PHP:** Do not create or edit plugins in `wp-content/plugins` or `mu-plugins` intending them to run on every page load.
-2. **Setup scripts must be Idempotent:** If modifying `scripts/wp-eval/*.php` or Bash scripts, ensure they can be run 10 times consecutively without duplicating content, roles, or settings. Use `update` logic instead of generic `insert` if something exists.
+2. **Setup scripts must be Idempotent:** If modifying `scripts/wp-eval/*.php`, `scripts/wp-eval/**`, or Bash scripts, ensure they can be run 10 times consecutively without duplicating content, roles, or settings. Use `update` logic instead of generic `insert` if something exists.
 3. **Respect Scoped Boundaries:** Do not introduce global querying for `beschluss` if the user is a generic Fachschaft role. Security relies on capability checking (e.g., `edit_b_informatik`) against scoped Pods endpoints and Members plugin page gating.
 4. **Testing Environments:** Validate UI or structural changes using the provided demo users combinations (`demo-fachschaft`, `demo-reviewer`, `demo-auditor`) defined in `docs/roles.md`.
 
