@@ -56,6 +56,7 @@ function fsfp_cli_publish_existing_workflow_posts(array $fachschaften): void
 function fsfp_cli_upsert_page(string $slug, string $title, string $content, int $parent_id = 0): int
 {
     $existing_path = $slug;
+    $slashed_content = wp_slash($content);
 
     if ($parent_id > 0) {
         $parent = get_post($parent_id);
@@ -70,7 +71,7 @@ function fsfp_cli_upsert_page(string $slug, string $title, string $content, int 
             'ID' => $existing->ID,
             'post_title' => $title,
             'post_name' => $slug,
-            'post_content' => $content,
+            'post_content' => $slashed_content,
             'post_parent' => $parent_id,
             'post_status' => 'publish',
         ], true);
@@ -83,7 +84,7 @@ function fsfp_cli_upsert_page(string $slug, string $title, string $content, int 
     }
 
     return fsfp_cli_upsert_post('page', $slug, $title, [
-        'post_content' => $content,
+        'post_content' => $slashed_content,
         'post_parent' => $parent_id,
     ]);
 }

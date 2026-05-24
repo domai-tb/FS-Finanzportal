@@ -175,6 +175,13 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
                 ) {
                     fs_finanzportal_verify_fail("Frontend list page {$path} must use the shared client-side table controls.");
                 }
+
+                if (!str_contains($portal_page->post_content, 'replace(/\\s+/g," ")')
+                    || !str_contains($portal_page->post_content, '/[",\\n;]/.test(value)')
+                    || !str_contains($portal_page->post_content, '"\\ufeff"+lines.join("\\n")')
+                ) {
+                    fs_finanzportal_verify_fail("Frontend list page {$path} must preserve CSV export JavaScript escape sequences.");
+                }
             }
     
             if (str_contains($portal_page->post_content, '{@permalink}')) {
@@ -215,6 +222,13 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
             || !str_contains($global_page->post_content, '<tbody data-unified-body>')
         ) {
             fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must render a unified overview table with filters and pagination.");
+        }
+
+        if (!str_contains($global_page->post_content, 'replace(/\\s+/g," ")')
+            || !str_contains($global_page->post_content, '/[",\\n;]/.test(value)')
+            || !str_contains($global_page->post_content, '"\\ufeff"+lines.join("\\n")')
+        ) {
+            fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must preserve CSV export JavaScript escape sequences.");
         }
     
         if (str_contains($global_page->post_content, '<h3>Fachschaft Informatik</h3>')
