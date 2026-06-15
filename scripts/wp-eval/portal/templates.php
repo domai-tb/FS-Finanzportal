@@ -32,6 +32,16 @@ function fsfp_cli_status_select_options(string $kind): string
     return $status_select;
 }
 
+function fsfp_cli_workflow_status_label_markup(string $status_field, array $labels): string
+{
+    $markup = '';
+    foreach ($labels as $value => $label) {
+        $markup .= '[if field="' . esc_attr($status_field) . '" value="' . esc_attr($value) . '"]' . esc_html($label) . '[/if]';
+    }
+
+    return $markup;
+}
+
 function fsfp_cli_return_to_url(string $url): string
 {
     return rawurlencode($url);
@@ -73,10 +83,96 @@ function fsfp_cli_payment_queue_links(string $base_url, bool $include_fachschaft
     return '<!-- wp:group --><div class="wp-block-group fsfp-queue-panel"><p>' . esc_html($hint) . '</p><div class="fsfp-queue-links">' . $links . '</div></div><!-- /wp:group -->';
 }
 
-function fsfp_cli_mailto_link(string $label, string $subject): string
+function fsfp_cli_role_email(string $role, string $fallback = ''): string
 {
-    $email = (string) get_option('admin_email');
-    return '<a class="fsfp-mailto-link" href="mailto:' . esc_attr($email) . '?subject=' . esc_attr(rawurlencode($subject)) . '">' . esc_html($label) . '</a>';
+    $users = get_users([
+        'role' => $role,
+        'number' => 1,
+        'orderby' => 'ID',
+        'order' => 'ASC',
+    ]);
+
+    if (!empty($users) && !empty($users[0]->user_email)) {
+        return (string) $users[0]->user_email;
+    }
+
+    return $fallback !== '' ? $fallback : (string) get_option('admin_email');
+}
+
+function fsfp_cli_mailto_link(string $label, string $subject, string $body = '', string $recipient = ''): string
+{
+    $email = $recipient !== '' ? $recipient : (string) get_option('admin_email');
+    $params = ['subject' => $subject];
+    if ($body !== '') {
+        $params['body'] = $body;
+    }
+
+    return '<a class="fsfp-mailto-link" href="mailto:' . esc_attr($email) . '?' . esc_attr(http_build_query($params, '', '&', PHP_QUERY_RFC3986)) . '">' . esc_html($label) . '</a>';
+}
+
+function fsfp_cli_workflow_normalization_summary_markup(): string
+{
+    $summary = get_option('fsfp_workflow_normalization_summary', []);
+    if (!is_array($summary)) {
+        $summary = [];
+    }
+
+    $rows = [
+        [
+            'key' => 'workflow-statuses-beschluss-legacy-mapped',
+            'label' => 'Beschlussstatus legacy gemappt',
+            'count' => (int) ($summary['workflow_statuses']['beschluss']['legacy_mapped'] ?? 0),
+            'hint' => 'Alte Beschlussstatuswerte wurden auf die aktuelle Domäne abgebildet.',
+        ],
+        [
+            'key' => 'workflow-statuses-beschluss-reset-to-draft',
+            'label' => 'Beschlussstatus auf Entwurf gesetzt',
+            'count' => (int) ($summary['workflow_statuses']['beschluss']['reset_to_draft'] ?? 0),
+            'hint' => 'Ungültige Beschlussstatuswerte wurden auf Entwurf zurückgesetzt.',
+        ],
+        [
+            'key' => 'workflow-statuses-zahlung-legacy-mapped',
+            'label' => 'Zahlungsstatus legacy gemappt',
+            'count' => (int) ($summary['workflow_statuses']['zahlung']['legacy_mapped'] ?? 0),
+            'hint' => 'Alte Zahlungsstatuswerte wurden auf die aktuelle Domäne abgebildet.',
+        ],
+        [
+            'key' => 'workflow-statuses-zahlung-reset-to-draft',
+            'label' => 'Zahlungsstatus auf Entwurf gesetzt',
+            'count' => (int) ($summary['workflow_statuses']['zahlung']['reset_to_draft'] ?? 0),
+            'hint' => 'Ungültige Zahlungsstatuswerte wurden auf Entwurf zurückgesetzt.',
+        ],
+        [
+            'key' => 'zahlungstyp-reset-to-standard',
+            'label' => 'Zahlungstyp auf Standard gesetzt',
+            'count' => (int) ($summary['zahlungstyp']['reset_to_standard'] ?? 0),
+            'hint' => 'Ungültige Zahlungstypen wurden auf Standard normalisiert.',
+        ],
+        [
+            'key' => 'beschluss-ref-cleared-for-vorkasse',
+            'label' => 'Beschluss-Referenzen bei Vorkasse entfernt',
+            'count' => (int) ($summary['beschluss_ref']['cleared_for_vorkasse'] ?? 0),
+            'hint' => 'Vorkasse-Zahlungen wurden von Beschluss-Referenzen entkoppelt.',
+        ],
+    ];
+
+    $total = array_sum(array_column($rows, 'count'));
+    $row_markup = '';
+    foreach ($rows as $row) {
+        $row_markup .= '<tr data-ops-normalization-row="' . esc_attr($row['key']) . '">'
+            . '<td>' . esc_html($row['label']) . '</td>'
+            . '<td><span class="fsfp-ops-badge fsfp-ops-badge--ok" data-ops-normalization-count="' . esc_attr((string) $row['count']) . '">' . esc_html((string) $row['count']) . '</span></td>'
+            . '<td>' . esc_html($row['hint']) . '</td>'
+            . '</tr>';
+    }
+
+    return '<section class="fsfp-ops-section fsfp-ops-integrity">'
+        . '<h3>Datenintegrität</h3>'
+        . '<p class="fsfp-ops-integrity-summary">Normalisierungssumme <span class="fsfp-ops-badge fsfp-ops-badge--ok" data-ops-normalization-total="' . esc_attr((string) $total) . '">' . esc_html((string) $total) . '</span></p>'
+        . '<table class="fsfp-table fsfp-ops-table fsfp-ops-integrity-table"><thead><tr><th>Prüfschritt</th><th>Count</th><th>Hinweis</th></tr></thead><tbody data-ops-normalization-summary>'
+        . $row_markup
+        . '</tbody></table>'
+        . '</section>';
 }
 
 function fsfp_cli_budget_report_source(string $beschluss_post_type, string $zahlung_post_type, string $fachschaft_slug, string $fachschaft_label): string
@@ -116,9 +212,39 @@ function fsfp_cli_budget_report(array $fachschaften): string
     return '<!-- wp:heading {"level":3} --><h3>Budgetübersicht</h3><!-- /wp:heading -->'
         . '<div class="fsfp-budget-report" data-fsfp-budget-report>'
         . '<div hidden>' . $sources . '</div>'
-        . '<table class="fsfp-table"><thead><tr><th>Fachschaft</th><th>Beschlossen</th><th>Zahlungsanweisungen</th><th>Offen</th></tr></thead><tbody data-budget-report-body></tbody></table>'
-        . '<script>(function(){var root=document.currentScript.closest("[data-fsfp-budget-report]");if(!root){return;}function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}function money(v){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);}var rows={},budgetByBeschluss={};root.querySelectorAll(".fsfp-report-budget-row").forEach(function(el){var f=el.dataset.fachschaft,label=el.dataset.fachschaftLabel||f,amount=parseAmount(el.dataset.budgetAmount);rows[f]=rows[f]||{label:label,budget:0,spent:0};rows[f].budget+=amount;budgetByBeschluss[el.dataset.beschlussId]=f;});root.querySelectorAll(".fsfp-report-payment-row").forEach(function(el){if(el.dataset.paymentType==="vorkasse"){return;}var f=budgetByBeschluss[el.dataset.beschlussId]||el.dataset.fachschaft;if(!rows[f]){return;}rows[f].spent+=parseAmount(el.dataset.paymentAmount);});var body=root.querySelector("[data-budget-report-body]");if(!body){return;}body.innerHTML=Object.keys(rows).sort().map(function(f){var r=rows[f];return "<tr><td>"+r.label+"</td><td>"+money(r.budget)+"</td><td>"+money(r.spent)+"</td><td>"+money(r.budget-r.spent)+"</td></tr>";}).join("");})();</script>'
+        . '<div class="fsfp-budget-summary" data-budget-report-summary hidden>'
+        . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Gesamt beschlossen</span><strong data-budget-total>Wird berechnet...</strong></div>'
+        . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Gesamt Zahlungsanweisungen</span><strong data-budget-spent>Wird berechnet...</strong></div>'
+        . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Gesamt offen</span><strong data-budget-open>Wird berechnet...</strong></div>'
+        . '</div>'
+        . '<p class="fsfp-budget-report-empty" data-budget-report-empty hidden>Für die Budgetübersicht liegen noch keine genehmigten Beschlüsse oder Zahlungsanweisungen vor.</p>'
+        . '<table class="fsfp-table" data-budget-report-table><thead><tr><th>Fachschaft</th><th>Beschlossen</th><th>Zahlungsanweisungen</th><th>Offen</th></tr></thead><tbody data-budget-report-body></tbody></table>'
+        . '<script>(function(){var root=document.currentScript.closest("[data-fsfp-budget-report]");if(!root){return;}function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}function money(v){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);}var rows={},budgetByBeschluss={},totalBudget=0,totalSpent=0;root.querySelectorAll(".fsfp-report-budget-row").forEach(function(el){var f=el.dataset.fachschaft,label=el.dataset.fachschaftLabel||f,amount=parseAmount(el.dataset.budgetAmount);rows[f]=rows[f]||{label:label,budget:0,spent:0};rows[f].budget+=amount;budgetByBeschluss[el.dataset.beschlussId]=f;});root.querySelectorAll(".fsfp-report-payment-row").forEach(function(el){if(el.dataset.paymentType==="vorkasse"){return;}var f=budgetByBeschluss[el.dataset.beschlussId]||el.dataset.fachschaft;if(!rows[f]){return;}rows[f].spent+=parseAmount(el.dataset.paymentAmount);});var body=root.querySelector("[data-budget-report-body]"),summary=root.querySelector("[data-budget-report-summary]"),empty=root.querySelector("[data-budget-report-empty]"),table=root.querySelector("[data-budget-report-table]");if(!body){return;}var keys=Object.keys(rows).sort();if(!keys.length){body.innerHTML="";if(summary){summary.hidden=true;}if(empty){empty.hidden=false;}if(table){table.hidden=true;}return;}body.innerHTML=keys.map(function(f){var r=rows[f];totalBudget+=r.budget;totalSpent+=r.spent;return "<tr><td>"+r.label+"</td><td>"+money(r.budget)+"</td><td>"+money(r.spent)+"</td><td>"+money(r.budget-r.spent)+"</td></tr>";}).join("");if(summary){summary.hidden=false;var budgetEl=root.querySelector("[data-budget-total]"),spentEl=root.querySelector("[data-budget-spent]"),openEl=root.querySelector("[data-budget-open]");if(budgetEl){budgetEl.textContent=money(totalBudget);}if(spentEl){spentEl.textContent=money(totalSpent);}if(openEl){openEl.textContent=money(totalBudget-totalSpent);}}if(empty){empty.hidden=true;}if(table){table.hidden=false;}})();</script>'
         . '</div>';
+}
+
+function fsfp_cli_reporting_sources(string $beschluss_post_type, string $zahlung_post_type, string $fachschaft_slug, string $fachschaft_label): string
+{
+    $beschluss_template = sanitize_key("fsfp-report-{$beschluss_post_type}-rows");
+    $zahlung_template = sanitize_key("fsfp-report-{$zahlung_post_type}-rows");
+
+    fsfp_cli_upsert_pods_template(
+        $beschluss_template,
+        $beschluss_template,
+        '<span class="fsfp-report-row fsfp-report-row--beschluss" data-kind="beschluss" data-fachschaft="' . esc_attr($fachschaft_slug) . '" data-fachschaft-label="' . esc_attr($fachschaft_label) . '" data-title="{@post_title}" data-status="{@beschluss_status}" data-report-date="{@beschlussdatum}" data-created-at="{@post_date}" data-amount="{@betrag}"></span>'
+    );
+    fsfp_cli_upsert_pods_template(
+        $zahlung_template,
+        $zahlung_template,
+        '<span class="fsfp-report-row fsfp-report-row--zahlung" data-kind="zahlung" data-fachschaft="' . esc_attr($fachschaft_slug) . '" data-fachschaft-label="' . esc_attr($fachschaft_label) . '" data-title="{@post_title}" data-status="{@zahlungs_status}" data-report-date="{@submitted_at}" data-created-at="{@post_date}" data-amount="{@betrag}" data-payment-type="{@zahlungstyp}" data-submitted-at="{@submitted_at}" data-reviewed-at="{@reviewed_at}" data-executed-at="{@executed_at}" data-beschluss-id="{@beschluss_ref.ID}"></span>'
+    );
+
+    return '<!-- wp:shortcode -->' . "\n"
+        . '[pods name="' . esc_attr($beschluss_post_type) . '" template="' . esc_attr($beschluss_template) . '" expires="-1" limit="-1" shortcodes="1"]' . "\n"
+        . '<!-- /wp:shortcode -->' . "\n"
+        . '<!-- wp:shortcode -->' . "\n"
+        . '[pods name="' . esc_attr($zahlung_post_type) . '" template="' . esc_attr($zahlung_template) . '" expires="-1" limit="-1" shortcodes="1"]' . "\n"
+        . '<!-- /wp:shortcode -->' . "\n";
 }
 
 function fsfp_cli_status_badge(string $field): string
@@ -240,6 +366,19 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
     $title = $is_beschluss ? 'Alle Beschlüsse' : 'Alle Zahlungsanweisungen';
     $date_th = $is_beschluss ? '<th>Datum</th>' : '';
     $type_th = $is_beschluss ? '' : '<th>Typ</th>';
+    $summary = '';
+
+    if (!$is_beschluss) {
+        $summary = '<div class="fsfp-unified-summary fsfp-unified-payment-summary" data-unified-summary>'
+            . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Gesamt</span><strong data-unified-summary-total>0</strong></div>'
+            . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Entwurf</span><strong data-unified-summary-count="draft">0</strong></div>'
+            . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Eingereicht</span><strong data-unified-summary-count="submitted">0</strong></div>'
+            . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Rückfrage</span><strong data-unified-summary-count="correction_requested">0</strong></div>'
+            . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Ausgeführt</span><strong data-unified-summary-count="executed">0</strong></div>'
+            . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Storniert</span><strong data-unified-summary-count="cancelled">0</strong></div>'
+            . '<p class="fsfp-unified-summary-empty" data-unified-summary-empty hidden>Keine passenden Zahlungsanweisungen gefunden.</p>'
+            . '</div>';
+    }
 
     $fachschaft_select = '<option value="">Alle Fachschaften</option>';
     $sources = '';
@@ -253,6 +392,7 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
 
     return '<!-- wp:heading --><h2>' . esc_html($title) . '</h2><!-- /wp:heading -->'
         . '<!-- wp:group {"align":"wide"} --><div id="' . esc_attr($table_id) . '" class="wp-block-group alignwide fsfp-unified-overview fsfp-table-wrap" data-fsfp-table="unified" data-export-name="' . esc_attr($table_id) . '">'
+        . $summary
         . '<div class="fsfp-unified-controls">'
         . '<label>Suche <input type="search" data-unified-search placeholder="Titel, ID, Betrag"></label>'
         . '<label>Status <select data-unified-status>' . fsfp_cli_status_select_options($kind) . '</select></label>'
@@ -264,6 +404,211 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
         . '<div class="fsfp-unified-pagination"><button type="button" data-unified-prev>Zurück</button><span data-unified-page></span><button type="button" data-unified-next>Weiter</button></div>'
         . fsfp_cli_table_controls_script()
         . '</div><!-- /wp:group -->';
+}
+
+function fsfp_cli_reporting_page(array $fachschaften): string
+{
+    $sources = '';
+    foreach ($fachschaften as $fachschaft) {
+        $slug = sanitize_key($fachschaft['slug']);
+        $label = $fachschaft['label'];
+        $types = fsfp_cli_workflow_types($slug);
+        $sources .= fsfp_cli_reporting_sources($types['beschluss'], $types['zahlung'], $slug, $label);
+    }
+
+    return '<!-- wp:heading --><h2>Berichte</h2><!-- /wp:heading -->'
+        . '<!-- wp:paragraph --><p>AStA-Berichte über Periodensummen, offene Arbeit, ausgeführte Zahlungen und Fachschaftssummen.</p><!-- /wp:paragraph -->'
+        . '<div class="fsfp-reporting" data-fsfp-reporting>'
+        . '<div hidden>' . $sources . '</div>'
+        . '<div class="fsfp-report-summary" data-report-summary hidden>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Genehmigt</span><strong data-report-total-budget>0,00 EUR</strong></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Ausgeführt</span><strong data-report-total-executed>0,00 EUR</strong></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Offen</span><strong data-report-total-open>0,00 EUR</strong></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Offene Vorgänge</span><strong data-report-total-open-count>0</strong></div>'
+        . '</div>'
+        . '<p class="fsfp-report-empty" data-report-empty hidden>Für den Bericht liegen noch keine Workflowdaten vor.</p>'
+        . '<section class="fsfp-report-section">'
+        . '<h3>Periodenübersicht</h3>'
+        . '<table class="fsfp-table fsfp-report-table"><thead><tr><th>Zeitraum</th><th>Beschlüsse</th><th>Zahlungsanweisungen</th><th>Ausgeführt</th><th>Offen</th></tr></thead><tbody data-report-period-body></tbody></table>'
+        . '<p class="fsfp-report-section-empty" data-report-period-empty hidden>Keine Periodendaten vorhanden.</p>'
+        . '</section>'
+        . '<section class="fsfp-report-section">'
+        . '<h3>Offene Arbeit</h3>'
+        . '<table class="fsfp-table fsfp-report-table"><thead><tr><th>Status</th><th>Vorgänge</th><th>Betrag</th></tr></thead><tbody data-report-status-body></tbody></table>'
+        . '<p class="fsfp-report-section-empty" data-report-status-empty hidden>Keine offenen Vorgänge vorhanden.</p>'
+        . '</section>'
+        . '<section class="fsfp-report-section">'
+        . '<h3>Fachschaftsübersicht</h3>'
+        . '<table class="fsfp-table fsfp-report-table"><thead><tr><th>Fachschaft</th><th>Beschlossen</th><th>Ausgeführt</th><th>Offen</th><th>Offene Vorgänge</th></tr></thead><tbody data-report-fachschaft-body></tbody></table>'
+        . '<p class="fsfp-report-section-empty" data-report-fachschaft-empty hidden>Keine Fachschaftsdaten vorhanden.</p>'
+        . '</section>'
+        . '<script>(function(){'
+        . 'var root=document.currentScript.closest("[data-fsfp-reporting]");if(!root){return;}'
+        . 'function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}'
+        . 'function parseDate(value){var raw=(value||"").trim();if(!raw){return null;}var direct=new Date(raw);if(!Number.isNaN(direct.getTime())){return direct;}var match=raw.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);if(match){return new Date(Number(match[1]),Number(match[2])-1,Number(match[3]||1));}return null;}'
+        . 'function money(value){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(value);}'
+        . 'function monthKey(date){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0");}'
+        . 'function monthLabel(key){var parts=key.split("-");return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(Number(parts[0]),Number(parts[1])-1,1));}'
+        . 'function formatCell(count,amount){return count+" · "+money(amount);}'
+        . 'var rows=Array.from(root.querySelectorAll(".fsfp-report-row"));'
+        . 'var summary=root.querySelector("[data-report-summary]");'
+        . 'var summaryBudget=root.querySelector("[data-report-total-budget]");'
+        . 'var summaryExecuted=root.querySelector("[data-report-total-executed]");'
+        . 'var summaryOpen=root.querySelector("[data-report-total-open]");'
+        . 'var summaryOpenCount=root.querySelector("[data-report-total-open-count]");'
+        . 'var empty=root.querySelector("[data-report-empty]");'
+        . 'var periodBody=root.querySelector("[data-report-period-body]");'
+        . 'var statusBody=root.querySelector("[data-report-status-body]");'
+        . 'var fachschaftBody=root.querySelector("[data-report-fachschaft-body]");'
+        . 'var periodEmpty=root.querySelector("[data-report-period-empty]");'
+        . 'var statusEmpty=root.querySelector("[data-report-status-empty]");'
+        . 'var fachschaftEmpty=root.querySelector("[data-report-fachschaft-empty]");'
+        . 'if(!periodBody||!statusBody||!fachschaftBody){return;}'
+        . 'var periods={},fachschaften={},statusRows={"draft_beschluss":{label:"Beschluss Entwurf",count:0,amount:0},"draft":{label:"Entwurf",count:0,amount:0},"submitted":{label:"Eingereicht",count:0,amount:0},"correction_requested":{label:"Rückfrage",count:0,amount:0}};'
+        . 'var totalBudget=0,totalExecuted=0,totalOpen=0,totalOpenCount=0;'
+        . 'function ensurePeriod(key,label){if(!periods[key]){periods[key]={label:label,beschlussCount:0,beschlussAmount:0,paymentCount:0,paymentAmount:0,executedCount:0,executedAmount:0,openCount:0,openAmount:0};}return periods[key];}'
+        . 'function ensureFachschaft(key,label){if(!fachschaften[key]){fachschaften[key]={label:label,budget:0,executed:0,open:0,openCount:0};}return fachschaften[key];}'
+        . 'rows.forEach(function(row){var kind=row.dataset.kind||"";var status=row.dataset.status||"";var fachschaftKey=row.dataset.fachschaft||"unbekannt";var fachschaftLabel=row.dataset.fachschaftLabel||fachschaftKey;var amount=parseAmount(row.dataset.amount);var date=parseDate(row.dataset.reportDate||row.dataset.executedAt||row.dataset.submittedAt||row.dataset.reviewedAt||row.dataset.createdAt);var periodKey=date?monthKey(date):"unbekannt";var periodLabel=date?monthLabel(periodKey):"Ohne Datum";var period=ensurePeriod(periodKey,periodLabel);var fachschaft=ensureFachschaft(fachschaftKey,fachschaftLabel);if(kind==="beschluss"){period.beschlussCount+=1;if(status==="approved"){period.beschlussAmount+=amount;fachschaft.budget+=amount;totalBudget+=amount;}else if(status==="draft"){period.openCount+=1;period.openAmount+=amount;fachschaft.open+=amount;fachschaft.openCount+=1;totalOpen+=amount;totalOpenCount+=1;var draftBucket=statusRows.draft_beschluss;if(draftBucket){draftBucket.count+=1;draftBucket.amount+=amount;}}}else if(kind==="zahlung"){period.paymentCount+=1;period.paymentAmount+=amount;if(status==="executed"){period.executedCount+=1;period.executedAmount+=amount;fachschaft.executed+=amount;totalExecuted+=amount;}else if(status==="draft"||status==="submitted"||status==="correction_requested"){period.openCount+=1;period.openAmount+=amount;fachschaft.open+=amount;fachschaft.openCount+=1;totalOpen+=amount;totalOpenCount+=1;var bucket=statusRows[status];if(bucket){bucket.count+=1;bucket.amount+=amount;}}}if(kind==="zahlung"&&status==="cancelled"){period.paymentCount+=1;}});'
+        . 'var periodKeys=Object.keys(periods).sort(function(a,b){if(a==="unbekannt"){return 1;}if(b==="unbekannt"){return -1;}return a>b?-1:1;});'
+        . 'periodBody.innerHTML=periodKeys.map(function(key){var period=periods[key];return "<tr><td>"+period.label+"</td><td>"+formatCell(period.beschlussCount,period.beschlussAmount)+"</td><td>"+formatCell(period.paymentCount,period.paymentAmount)+"</td><td>"+formatCell(period.executedCount,period.executedAmount)+"</td><td>"+formatCell(period.openCount,period.openAmount)+"</td></tr>";}).join("");'
+        . 'var statusKeys=Object.keys(statusRows);'
+        . 'statusBody.innerHTML=statusKeys.map(function(key){var row=statusRows[key];return "<tr><td>"+row.label+"</td><td>"+row.count+"</td><td>"+money(row.amount)+"</td></tr>";}).join("");'
+        . 'var fachschaftKeys=Object.keys(fachschaften).sort(function(a,b){return fachschaften[a].label.localeCompare(fachschaften[b].label,"de");});'
+        . 'fachschaftBody.innerHTML=fachschaftKeys.map(function(key){var fachschaft=fachschaften[key];return "<tr><td>"+fachschaft.label+"</td><td>"+money(fachschaft.budget)+"</td><td>"+money(fachschaft.executed)+"</td><td>"+money(fachschaft.open)+"</td><td>"+fachschaft.openCount+"</td></tr>";}).join("");'
+        . 'var hasRows=periodKeys.length>0||statusKeys.some(function(key){return statusRows[key].count>0;})||fachschaftKeys.length>0;'
+        . 'if(summary){summary.hidden=!hasRows;}'
+        . 'if(summaryBudget){summaryBudget.textContent=money(totalBudget);}'
+        . 'if(summaryExecuted){summaryExecuted.textContent=money(totalExecuted);}'
+        . 'if(summaryOpen){summaryOpen.textContent=money(totalOpen);}'
+        . 'if(summaryOpenCount){summaryOpenCount.textContent=String(totalOpenCount);}'
+        . 'if(empty){empty.hidden=hasRows;}'
+        . 'if(periodEmpty){periodEmpty.hidden=periodKeys.length>0;}'
+        . 'if(statusEmpty){statusEmpty.hidden=!statusKeys.some(function(key){return statusRows[key].count>0;});}'
+        . 'if(fachschaftEmpty){fachschaftEmpty.hidden=fachschaftKeys.length>0;}'
+        . '})();</script>'
+        . '</div>';
+}
+
+function fsfp_cli_operations_page(array $fachschaften): string
+{
+    $members_settings = get_option('members_settings', []);
+    if (!is_array($members_settings)) {
+        $members_settings = [];
+    }
+    $hab_settings = get_option('hab_settings', []);
+    if (!is_array($hab_settings)) {
+        $hab_settings = [];
+    }
+
+    $active_plugins = (array) get_option('active_plugins', []);
+    $meta_ledger_active = function_exists('is_plugin_active')
+        ? is_plugin_active('meta-ledger/meta-ledger.php')
+        : in_array('meta-ledger/meta-ledger.php', $active_plugins, true);
+
+    $checks = [
+        [
+            'key' => 'members-content-permissions',
+            'label' => 'Members content permissions',
+            'ok' => !empty($members_settings['content_permissions']),
+            'hint' => !empty($members_settings['content_permissions']) ? 'Aktiv' : 'Nicht aktiv',
+        ],
+        [
+            'key' => 'members-rest-hide',
+            'label' => 'Members REST shielding',
+            'ok' => !empty($members_settings['hide_posts_rest_api']),
+            'hint' => !empty($members_settings['hide_posts_rest_api']) ? 'REST-Ausgabe verborgen' : 'REST-Ausgabe sichtbar',
+        ],
+        [
+            'key' => 'rda-redirect',
+            'label' => 'Remove Dashboard Access redirect',
+            'ok' => get_option('rda_access_switch') === 'capability'
+                && get_option('rda_access_cap') === fsfp_cli_admin_edit_access_cap()
+                && untrailingslashit((string) get_option('rda_redirect_url')) === untrailingslashit(home_url('/dashboard/')),
+            'hint' => 'Capability gate and redirect URL',
+        ],
+        [
+            'key' => 'admin-bar',
+            'label' => 'Hide Admin Bar roles',
+            'ok' => in_array('fs_portal_empty', (array) ($hab_settings['hab_userRoles'] ?? []), true),
+            'hint' => 'Portal roles are registered',
+        ],
+        [
+            'key' => 'meta-ledger',
+            'label' => 'Meta Ledger retention',
+            'ok' => (int) get_option('meta_ledger_retention_count') >= 200 && $meta_ledger_active,
+            'hint' => $meta_ledger_active ? 'Retention 200+' : 'Plugin inactive',
+        ],
+    ];
+
+    foreach ($fachschaften as $fachschaft) {
+        $slug = sanitize_key($fachschaft['slug']);
+        foreach (["fs_{$slug}_reader", "fs_{$slug}_finance"] as $role_name) {
+            $checks[] = [
+                'key' => 'hidden-admin-bar-' . $role_name,
+                'label' => $role_name,
+                'ok' => in_array($role_name, (array) ($hab_settings['hab_userRoles'] ?? []), true),
+                'hint' => 'Hidden admin bar role sync',
+            ];
+        }
+    }
+
+    $page_checks = [
+        '/dashboard/' => 'Dashboard',
+        '/dashboard/beschluesse/' => 'Alle Beschlüsse',
+        '/dashboard/zahlungsanweisungen/' => 'Alle Zahlungsanweisungen',
+        '/dashboard/berichte/' => 'Berichte',
+    ];
+    foreach ($page_checks as $path => $label) {
+        $page = get_page_by_path(trim($path, '/'), OBJECT, 'page');
+        $checks[] = [
+            'key' => 'page-' . sanitize_key(str_replace('/', '-', trim($path, '/'))),
+            'label' => $label,
+            'ok' => (bool) $page,
+            'hint' => $path,
+        ];
+    }
+
+    $check_rows = '';
+    foreach ($checks as $check) {
+        $check_rows .= '<tr data-ops-check="' . esc_attr($check['key']) . '">'
+            . '<td>' . esc_html($check['label']) . '</td>'
+            . '<td>' . ($check['ok'] ? '<span class="fsfp-ops-badge fsfp-ops-badge--ok">OK</span>' : '<span class="fsfp-ops-badge fsfp-ops-badge--warn">Fehlt</span>') . '</td>'
+            . '<td>' . esc_html($check['hint']) . '</td>'
+            . '</tr>';
+    }
+
+    $role_rows = '';
+    foreach (['administrator', 'portal_admin'] as $role_name) {
+        $role_rows .= '<tr data-ops-check="role-' . esc_attr($role_name) . '">'
+            . '<td>' . esc_html($role_name) . '</td>'
+            . '<td><span class="fsfp-ops-badge fsfp-ops-badge--ok">OK</span></td>'
+            . '<td>Betriebsansicht freigegeben</td>'
+            . '</tr>';
+    }
+
+    return '<!-- wp:heading --><h2>Betrieb</h2><!-- /wp:heading -->'
+        . '<!-- wp:paragraph --><p>Setup- und Wiederherstellungsübersicht für Portal-Administratoren.</p><!-- /wp:paragraph -->'
+        . '<div class="fsfp-ops" data-fsfp-ops>'
+        . fsfp_cli_workflow_normalization_summary_markup()
+        . '<section class="fsfp-ops-section">'
+        . '<h3>Setup-Status</h3>'
+        . '<table class="fsfp-table fsfp-ops-table"><thead><tr><th>Prüfschritt</th><th>Status</th><th>Hinweis</th></tr></thead><tbody>'
+        . $check_rows
+        . $role_rows
+        . '</tbody></table>'
+        . '</section>'
+        . '<section class="fsfp-ops-section">'
+        . '<h3>Wiederherstellung</h3>'
+        . '<p>Bei Setup-Problemen zuerst die lokale Verifikation neu ausführen und dann den Dienstzustand prüfen.</p>'
+        . '<ul class="fsfp-ops-list">'
+        . '<li><code>./scripts/verify-setup.sh</code> zur erneuten Prüfung der Setup-Verkettung.</li>'
+        . '<li><code>docker compose ps</code> für den Servicezustand.</li>'
+        . '<li><code>docker compose logs wordpress</code> und <code>docker compose logs keycloak</code> für Fehlersuche.</li>'
+        . '<li><code>docker compose down</code> und danach <code>docker compose up -d</code> für einen sauberen Neustart.</li>'
+        . '</ul>'
+        . '<p class="fsfp-ops-note">Backup und Restore bleiben aus der bestehenden Docker-/DB-Schicht zu handhaben; diese Seite hält nur die operationalen Prüfpunkte sichtbar.</p>'
+        . '</section>'
+        . '</div>';
 }
 
 function fsfp_cli_related_zahlungen_shortcode(string $zahlung_post_type, string $fachschaft_slug): string
@@ -313,6 +658,19 @@ function fsfp_cli_budget_source_shortcode(string $zahlung_post_type): string
         . '[pods name="' . esc_attr($zahlung_post_type) . '" template="' . esc_attr($template_slug) . '" expires="-1" limit="-1"]' . "\n"
         . '<!-- /wp:shortcode -->' . "\n"
         . '</div>' . "\n";
+}
+
+function fsfp_cli_document_context_markup(string $status_field): string
+{
+    return '<section class="fsfp-action-panel fsfp-document-context">'
+        . '<h4>Dokumentenkontext</h4>'
+        . '<dl>'
+        . '<dt>Erstellt am</dt><dd>{@post_date}</dd>'
+        . '<dt>Zuletzt geändert am</dt><dd>{@post_modified}</dd>'
+        . '<dt>Erstellt durch</dt><dd>{@post_author.display_name}</dd>'
+        . '<dt>Status</dt><dd>{@' . $status_field . '}</dd>'
+        . '</dl>'
+        . '</section>';
 }
 
 function fsfp_cli_beschluss_budget_source_shortcode(string $beschluss_post_type): string
@@ -376,6 +734,11 @@ function fsfp_cli_workflow_metadata_markup(string $post_type, string $kind): str
     $template_slug = sanitize_key("fsfp-{$post_type}-workflow-log");
 
     if ($kind === 'beschluss') {
+        $status_markup = fsfp_cli_workflow_status_label_markup('beschluss_status', [
+            'draft' => 'Entwurf',
+            'approved' => 'Genehmigt',
+            'rejected' => 'Abgelehnt',
+        ]);
         fsfp_cli_upsert_pods_template(
             $template_slug,
             $template_slug,
@@ -383,10 +746,17 @@ function fsfp_cli_workflow_metadata_markup(string $post_type, string $kind): str
             . '<thead><tr><th>Schritt</th><th>Status</th><th>Datum</th><th>Person</th><th>Hinweis</th></tr></thead>'
             . '<tbody>'
             . '<tr><td>Erstellt</td><td>Entwurf</td><td>{@post_date}</td><td>{@post_author.display_name}</td><td></td></tr>'
-            . '<tr><td>Entscheidung</td><td>{@beschluss_status}</td><td>{@decided_at}</td><td>{@decided_by}</td><td>{@decision_note}</td></tr>'
+            . '<tr><td>Entscheidung</td><td>' . $status_markup . '</td><td>{@decided_at}</td><td>{@decided_by}</td><td>{@decision_note}</td></tr>'
             . '</tbody></table>'
         );
     } else {
+        $status_markup = fsfp_cli_workflow_status_label_markup('zahlungs_status', [
+            'draft' => 'Entwurf',
+            'submitted' => 'Eingereicht',
+            'correction_requested' => 'Rückfrage',
+            'cancelled' => 'Storniert',
+            'executed' => 'Ausgeführt',
+        ]);
         fsfp_cli_upsert_pods_template(
             $template_slug,
             $template_slug,
@@ -397,7 +767,7 @@ function fsfp_cli_workflow_metadata_markup(string $post_type, string $kind): str
             . '<tr><td>Eingereicht</td><td>Eingereicht</td><td>{@submitted_at}</td><td></td><td>{@workflow_note}</td></tr>'
             . '<tr><td>Rückfrage</td><td>Rückfrage</td><td>{@clarification_requested_at}</td><td>{@clarification_requested_by}</td><td>{@clarification_request}</td></tr>'
             . '<tr><td>Antwort</td><td>Rückfrage beantwortet</td><td>{@clarification_answered_at}</td><td>{@clarification_answered_by}</td><td>{@clarification_response}</td></tr>'
-            . '<tr><td>Geprüft</td><td>{@zahlungs_status}</td><td>{@reviewed_at}</td><td>{@reviewed_by}</td><td>{@workflow_note}</td></tr>'
+            . '<tr><td>Geprüft</td><td>' . $status_markup . '</td><td>{@reviewed_at}</td><td>{@reviewed_by}</td><td>{@workflow_note}</td></tr>'
             . '<tr><td>Ausgeführt</td><td>Ausgeführt</td><td>{@executed_at}</td><td>{@executed_by}</td><td>{@workflow_note}</td></tr>'
             . '</tbody></table>'
         );
@@ -417,7 +787,9 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
     $reference_markup = '';
     $payment_type_markup = '';
     $payment_metadata_markup = '';
+    $document_context_markup = fsfp_cli_document_context_markup($status_field);
     $clarification_markup = '';
+    $follow_up_markup = '';
     $related_markup = '';
     $amount_markup = '<dt>Betrag Zahlungsanweisung</dt><dd>{@betrag}</dd>';
 
@@ -430,6 +802,10 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
 
     if ($kind === 'zahlung') {
         $beschluss_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/beschluss-details/?id={@beschluss_ref.ID}';
+        $portal_admin_email = fsfp_cli_role_email('portal_admin');
+        $asta_finance_email = fsfp_cli_role_email('asta_finance', $portal_admin_email);
+        $asta_reviewer_email = fsfp_cli_role_email('asta_reviewer', $asta_finance_email);
+        $fachschaft_finance_email = fsfp_cli_role_email("fs_{$fachschaft_slug}_finance", $portal_admin_email);
         $payment_type_markup = '<dt>Typ</dt><dd>[if field="zahlungstyp" value="vorkasse"]Zahlungsanweisung auf Vorkasse[/if][if field="zahlungstyp" value="vorkasse" compare="NOT IN"]Standard Zahlungsanweisung[/if]</dd>'
             . '[if field="zahlungstyp" value="vorkasse"]'
             . '<dt>Methode</dt><dd>{@vorkasse_method}</dd>'
@@ -447,6 +823,19 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
             . '<dt>Beantwortet durch</dt><dd>{@clarification_answered_by}</dd>'
             . '<dt>Antwort</dt><dd>{@clarification_response}</dd>'
             . '</dl></section>';
+        $follow_up_markup = '<section class="fsfp-action-panel fsfp-follow-up-panel">'
+            . '<h4>Rückfrage, Benachrichtigung und Kontakt</h4>'
+            . '<p>Wenn noch etwas offen ist, schreibe direkt an die Portal-Administration oder an das AStA-Team. Das hält die Rückfrage im normalen Prozess.</p>'
+            . '<div class="fsfp-notification-grid">'
+            . '<div class="fsfp-notification-item"><strong>Eingereicht</strong><span>AStA-Finanzteam</span><span>' . fsfp_cli_mailto_link('Entwurf öffnen', 'Zahlungsanweisung eingereicht: ' . $fachschaft_slug, 'Bitte prüfe die eingereichte Zahlungsanweisung.', $asta_finance_email) . '</span></div>'
+            . '<div class="fsfp-notification-item"><strong>Rückfrage</strong><span>Fachschaft-Finance</span><span>' . fsfp_cli_mailto_link('Entwurf öffnen', 'Rückfrage zu Zahlungsanweisung: ' . $fachschaft_slug, 'Bitte beantworte die Rückfrage zur Zahlungsanweisung.', $fachschaft_finance_email) . '</span></div>'
+            . '<div class="fsfp-notification-item"><strong>Antwort</strong><span>AStA-FSR Buchhaltung</span><span>' . fsfp_cli_mailto_link('Entwurf öffnen', 'Antwort auf Rückfrage: ' . $fachschaft_slug, 'Die Rückfrage wurde beantwortet. Bitte prüfe die Antwort.', $asta_reviewer_email) . '</span></div>'
+            . '<div class="fsfp-notification-item"><strong>Ausgeführt</strong><span>Fachschaft-Finance</span><span>' . fsfp_cli_mailto_link('Entwurf öffnen', 'Zahlungsanweisung ausgeführt: ' . $fachschaft_slug, 'Die Zahlungsanweisung wurde ausgeführt.', $fachschaft_finance_email) . '</span></div>'
+            . '<div class="fsfp-notification-item"><strong>Storniert</strong><span>Portal-Administration</span><span>' . fsfp_cli_mailto_link('Entwurf öffnen', 'Zahlungsanweisung storniert: ' . $fachschaft_slug, 'Die Zahlungsanweisung wurde vor Ausführung storniert.', $portal_admin_email) . '</span></div>'
+            . '</div>'
+            . '<p><strong>Nächster Schritt:</strong> ' . fsfp_cli_mailto_link('Portal-Administration kontaktieren', 'Rückfrage zu Zahlungsanweisung ' . $fachschaft_slug) . '</p>'
+            . '<p>' . fsfp_cli_mailto_link('AStA-Finanzteam kontaktieren', 'AStA-Rückfrage zu Zahlungsanweisung ' . $fachschaft_slug) . '</p>'
+            . '</section>';
         $reference_markup = '[if field="zahlungstyp" value="vorkasse" compare="NOT IN"]'
             . '<dt>Beschluss</dt><dd><a href="' . $beschluss_url . '">{@beschluss_ref.post_title}</a></dd>'
             . '<dt>Betrag Beschlossen</dt><dd data-budget-amount>{@beschluss_ref.betrag}</dd>'
@@ -474,6 +863,8 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
         . $reference_markup
         . '<dt>Notizen</dt><dd>{@notes}</dd>'
         . '</dl>'
+        . $document_context_markup
+        . $follow_up_markup
         . $clarification_markup
         . '</article>' . "\n"
         . '[/pods]' . "\n"

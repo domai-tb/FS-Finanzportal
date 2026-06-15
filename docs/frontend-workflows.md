@@ -20,20 +20,28 @@ AStA finance/reviewer users and administrators can also use:
 
 - `/dashboard/beschluesse/`
 - `/dashboard/zahlungsanweisungen/`
+- `/dashboard/berichte/`
+
+Administrators and `portal_admin` can also use:
+
+- `/dashboard/betrieb/`
 
 These global pages are restricted to AStA finance/reviewer and admin roles.
-They render one visible table per workflow type across all Fachschaften. The
-table has global search, status filtering, Fachschaft filtering, and client-side
-pagination over scoped Pods row shortcodes. This is an overview UI over the
-separate scoped post types, not a shared runtime data model. Fachschaft users
-and auditors do not see global links and cannot view global page content
-directly.
+The two overview pages render one visible table per workflow type across all
+Fachschaften. The report page aggregates the same setup-generated source rows
+into period totals, open-workload summaries, executed-payment totals, and
+Fachschaft summaries. All of it is still an overview UI over the separate
+scoped post types, not a shared runtime data model. Fachschaft users and
+auditors do not see global links and cannot view global page content directly.
 
 The generated block header navigation includes `Beschlüsse` and
 `Zahlungsanweisungen` links beside `Dashboard` and `Logout`. Those links are
 plain navigation items styled by the active theme. A small setup-generated
 browser script points them to the unified overview tables for AStA pages and to
-the current Fachschaft's scoped workflow pages on Fachschaft pages.
+the current Fachschaft's scoped workflow pages on Fachschaft pages. The AStA
+dashboard also exposes a direct `Berichte` card that links to the generated
+reporting page, and the admin dashboard exposes a `Betrieb` card for setup and
+recovery checks.
 
 ## List and Detail
 
@@ -97,6 +105,11 @@ currently open budget. Vorkasse payments skip this budget guard because they
 are not tied to a Beschluss. This is a portal UX guard; hard transition and
 budget enforcement would require a future server-side mechanism that still
 respects the no-runtime-custom-PHP architecture constraint.
+Zahlungsanweisung detail pages also include setup-generated notification
+drafts for the common workflow events so handoffs can be sent by e-mail without
+adding runtime automation.
+Vorkasse detail pages are rendered and checked separately so the portal proves
+the branch-specific fields and the absence of Beschluss budget context.
 
 The visible workflow history is modeled as domain data, not as a generic audit
 log. Beschluss workflow forms expose `decided_at`, `decided_by`, and
@@ -114,6 +127,10 @@ List pages include generated action queues for common work states
 the currently visible filtered table rows. The AStA Beschluss overview also
 includes a generated budget summary that derives decided, spent, and open
 amounts from the rendered scoped records.
+The AStA reporting page combines the same setup-generated source rows into
+period totals, pending work, executed payments, and Fachschaft-level totals.
+The `Betrieb` page provides a setup-readiness checklist, a setup-time
+data-integrity summary, and recovery guidance for portal administrators.
 
 ## Business Status Labels
 

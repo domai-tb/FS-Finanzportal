@@ -31,6 +31,11 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
         fsfp_cli_global_overview_roles(),
         fsfp_cli_dashboard_card('AStA / Gesamtübersicht', home_url('/dashboard/beschluesse/'), 'Alle Beschlüsse öffnen')
         . fsfp_cli_dashboard_card('AStA / Zahlungsanweisungen', home_url('/dashboard/zahlungsanweisungen/'), 'Alle Zahlungsanweisungen öffnen')
+        . fsfp_cli_dashboard_card('AStA / Berichte', home_url('/dashboard/berichte/'), 'Berichte öffnen')
+    );
+    $dashboard_blocks .= fsfp_cli_members_access_block(
+        ['administrator', 'portal_admin'],
+        fsfp_cli_dashboard_card('Betrieb', home_url('/dashboard/betrieb/'), 'Öffnen')
     );
     $dashboard_blocks .= fsfp_cli_members_access_block(
         ['fs_portal_empty'],
@@ -54,6 +59,7 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
         . fsfp_cli_budget_report($fachschaften);
     $global_zahlungen = fsfp_cli_payment_queue_links(home_url('/dashboard/zahlungsanweisungen/'), true)
         . fsfp_cli_unified_overview_page('zahlung', $fachschaften);
+    $global_berichte = fsfp_cli_reporting_page($fachschaften);
     
     foreach ($fachschaften as $fachschaft) {
         $slug = sanitize_key($fachschaft['slug']);
@@ -161,7 +167,11 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
     fsfp_cli_restrict_page_to_roles($global_beschluesse_id, fsfp_cli_global_overview_roles());
     $global_zahlungen_id = fsfp_cli_upsert_page('zahlungsanweisungen', 'Alle Zahlungsanweisungen', $global_zahlungen, $dashboard_id);
     fsfp_cli_restrict_page_to_roles($global_zahlungen_id, fsfp_cli_global_overview_roles());
-    
+    $global_berichte_id = fsfp_cli_upsert_page('berichte', 'Berichte', $global_berichte, $dashboard_id);
+    fsfp_cli_restrict_page_to_roles($global_berichte_id, fsfp_cli_global_overview_roles());
+    $operations_id = fsfp_cli_upsert_page('betrieb', 'Betrieb', fsfp_cli_operations_page($fachschaften), $dashboard_id);
+    fsfp_cli_restrict_page_to_roles($operations_id, ['administrator', 'portal_admin']);
+
     fsfp_cli_ensure_menu('Portal Navigation', $menu_items);
     fsfp_cli_ensure_block_navigation('Portal Navigation', $block_menu_items);
 }

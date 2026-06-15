@@ -116,3 +116,5 @@ forms and verification rather than a custom runtime state-machine hook.
 - [Access management](docs/access-management.md)
 - [Frontend workflows](docs/frontend-workflows.md)
 - [Workflow process](docs/workflow-process.md)
+- [Project specification](docs/project-specification.md)
+- [Agent harness](docs/agent-harness.md)

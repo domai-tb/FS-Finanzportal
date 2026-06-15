@@ -60,10 +60,16 @@ field-level payment type, not a separate role or post type. WordPress
 administrators and `portal_admin` keep full setup/admin access.
 
 The global overview pages under `/dashboard/beschluesse/` and
-`/dashboard/zahlungsanweisungen/` are AStA/admin work queues. They combine
-scoped Pods row shortcodes into one browser-side table with search, status,
-Fachschaft filters, and pagination. Auditors retain read capabilities on scoped
-Fachschaft pages but are not granted those AStA overview pages.
+`/dashboard/zahlungsanweisungen/`, plus the generated `/dashboard/berichte/`
+reporting page, are AStA/admin work surfaces. They combine scoped Pods row
+shortcodes into browser-side tables and setup-generated aggregations with
+search, status, Fachschaft filters, and pagination. Auditors retain read
+capabilities on scoped Fachschaft pages but are not granted those AStA work
+surfaces.
+
+The generated `/dashboard/betrieb/` page is reserved for `administrator` and
+`portal_admin`. It is an operator surface for setup readiness and recovery
+guidance rather than a workflow view.
 
 Normal workflow users do not receive delete capabilities. Workflow completion,
 clarification, and cancellation are modeled through status values and explicit

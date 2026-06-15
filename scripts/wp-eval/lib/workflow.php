@@ -5,6 +5,25 @@
 
 function fsfp_cli_normalize_workflow_statuses(array $fachschaften): void
 {
+    $summary = [
+        'workflow_statuses' => [
+            'beschluss' => [
+                'legacy_mapped' => 0,
+                'reset_to_draft' => 0,
+            ],
+            'zahlung' => [
+                'legacy_mapped' => 0,
+                'reset_to_draft' => 0,
+            ],
+        ],
+        'zahlungstyp' => [
+            'reset_to_standard' => 0,
+        ],
+        'beschluss_ref' => [
+            'cleared_for_vorkasse' => 0,
+        ],
+    ];
+
     foreach ($fachschaften as $fachschaft) {
         $slug = sanitize_key($fachschaft['slug']);
         $types = fsfp_cli_workflow_types($slug);
@@ -23,9 +42,16 @@ function fsfp_cli_normalize_workflow_statuses(array $fachschaften): void
             foreach ($post_ids as $post_id) {
                 $status = (string) get_post_meta((int) $post_id, $workflow['field'], true);
                 if (isset($workflow['map'][$status])) {
-                    update_post_meta((int) $post_id, $workflow['field'], $workflow['map'][$status]);
+                    $new_status = $workflow['map'][$status];
+                    if ($status !== $new_status) {
+                        update_post_meta((int) $post_id, $workflow['field'], $new_status);
+                        $summary['workflow_statuses'][$workflow['field'] === 'beschluss_status' ? 'beschluss' : 'zahlung']['legacy_mapped']++;
+                    }
                 } elseif (!in_array($status, $workflow['valid'], true)) {
-                    update_post_meta((int) $post_id, $workflow['field'], 'draft');
+                    if ($status !== 'draft') {
+                        update_post_meta((int) $post_id, $workflow['field'], 'draft');
+                        $summary['workflow_statuses'][$workflow['field'] === 'beschluss_status' ? 'beschluss' : 'zahlung']['reset_to_draft']++;
+                    }
                 }
             }
         }
@@ -40,10 +66,23 @@ function fsfp_cli_normalize_workflow_statuses(array $fachschaften): void
         foreach ($zahlung_ids as $post_id) {
             $zahlungstyp = (string) get_post_meta((int) $post_id, 'zahlungstyp', true);
             if (!in_array($zahlungstyp, fsfp_cli_payment_type_values(), true)) {
-                update_post_meta((int) $post_id, 'zahlungstyp', 'standard');
+                if ($zahlungstyp !== 'standard') {
+                    update_post_meta((int) $post_id, 'zahlungstyp', 'standard');
+                    $summary['zahlungstyp']['reset_to_standard']++;
+                }
+                continue;
+            }
+
+            if ($zahlungstyp === 'vorkasse') {
+                if (metadata_exists('post', (int) $post_id, 'beschluss_ref')) {
+                    delete_post_meta((int) $post_id, 'beschluss_ref');
+                    $summary['beschluss_ref']['cleared_for_vorkasse']++;
+                }
             }
         }
     }
+
+    update_option('fsfp_workflow_normalization_summary', $summary);
 }
 
 function fsfp_cli_workflow_status_values(string $kind): array

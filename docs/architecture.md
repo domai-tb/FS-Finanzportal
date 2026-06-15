@@ -124,8 +124,12 @@ edited, or published. Members content permissions restrict the frontend portal
 pages so Fachschaft users cannot view other Fachschaft pages or AStA overview
 pages. AStA overview pages are generated as one visible table per workflow type
 with browser-side search, status filtering, Fachschaft filtering, and
-pagination over scoped Pods row shortcodes. This keeps the physical
-post-type isolation intact and does not introduce a runtime PHP query layer.
+pagination over scoped Pods row shortcodes. The generated AStA reporting page
+uses the same scoped rows as setup-generated source data for period and
+Fachschaft summaries. The generated `Betrieb` page gives portal operators a
+setup/readiness surface without adding runtime business logic. This keeps the
+physical post-type isolation intact and does not introduce a runtime PHP query
+layer.
 Workflow records use published WordPress post status because Pods
 frontend list shortcodes do not reliably render private workflow posts for
 normal portal users. Direct public record routes are disabled, and workflow
@@ -177,7 +181,9 @@ verification after each image bump.
 - legacy generic workflow post types are not registered
 - every configured Fachschaft has scoped Beschluss and Zahlungsanweisung types
 - Fachschaft roles cannot access other Fachschaft pages or AStA overview pages
-- AStA roles can access unified overview pages, while auditors keep scoped read access only
+- AStA roles can access unified overview and reporting pages, administrators
+  and `portal_admin` can access the generated `Betrieb` page, and auditors keep
+  scoped read access only
 - global roles have the intended cross-Fachschaft capability access
 - unknown users have no workflow capabilities
 - workflow statuses, workflow date fields, and Beschluss relationship fields

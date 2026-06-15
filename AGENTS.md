@@ -34,6 +34,7 @@ FS-Finanzportal is a low-code, Docker-based WordPress workflow prototype designe
 2. **Setup scripts must be Idempotent:** If modifying `scripts/wp-eval/*.php`, `scripts/wp-eval/**`, or Bash scripts, ensure they can be run 10 times consecutively without duplicating content, roles, or settings. Use `update` logic instead of generic `insert` if something exists.
 3. **Respect Scoped Boundaries:** Do not introduce global querying for `beschluss` if the user is a generic Fachschaft role. Security relies on capability checking (e.g., `edit_b_informatik`) against scoped Pods endpoints and Members plugin page gating.
 4. **Testing Environments:** Validate UI or structural changes using the provided demo users combinations (`demo-fachschaft`, `demo-reviewer`, `demo-auditor`) defined in `docs/roles.md`.
+5. **Agent Harness:** Follow `docs/agent-harness.md` for the interaction contract, lane selection, observation shape, and recovery rules.
 
 ## Relevant Documentation
 Do not guess. Refer to the existing Markdown docs when adjusting workflow logic:
@@ -41,3 +42,5 @@ Do not guess. Refer to the existing Markdown docs when adjusting workflow logic:
 - `docs/roles.md`: Comprehensive breakdown of capabilities, default demo accounts, and OIDC claims.
 - `docs/access-management.md`: How page level frontend security is layered on top of WP capabilities.
 - `docs/frontend-workflows.md`: Detailed map of dashboard routes.
+- `docs/agent-harness.md`: Agent interaction model, command lanes, and failure recovery.
+- `docs/project-specification.md`: Current project baseline, missing features, and goals.

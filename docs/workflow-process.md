@@ -90,6 +90,9 @@ Rules:
 - The generated portal stores one structured Rückfrage request and one
   structured response on the Zahlungsanweisung. Follow-up discussion can still
   happen by e-mail when needed.
+- The payment detail page also offers setup-generated notification drafts for
+  the common workflow events so handoffs stay visible without runtime mail
+  automation.
 - Only AStA FSR Buchhaltung may set `Rückfrage`.
 - Only AStA FSR Buchhaltung may set `Ausgeführt`.
 - `Ausgeführt` is terminal. After a Zahlungsanweisung is `Ausgeführt`, no

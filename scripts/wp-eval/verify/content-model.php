@@ -152,7 +152,34 @@ function fs_finanzportal_verify_content_model(): array
     if ((int) get_option('meta_ledger_retention_count') < 200) {
         fs_finanzportal_verify_fail('Meta Ledger retention must keep at least 200 entries per meta key.');
     }
-    
+
+    $workflow_normalization_summary = get_option('fsfp_workflow_normalization_summary');
+    if (!is_array($workflow_normalization_summary)
+        || !isset($workflow_normalization_summary['workflow_statuses'], $workflow_normalization_summary['zahlungstyp'], $workflow_normalization_summary['beschluss_ref'])
+        || !is_array($workflow_normalization_summary['workflow_statuses'])
+        || !is_array($workflow_normalization_summary['zahlungstyp'])
+        || !is_array($workflow_normalization_summary['beschluss_ref'])
+    ) {
+        fs_finanzportal_verify_fail('Workflow normalization summary option is missing or malformed.');
+    }
+
+    foreach (['beschluss', 'zahlung'] as $kind) {
+        if (!isset($workflow_normalization_summary['workflow_statuses'][$kind]['legacy_mapped'], $workflow_normalization_summary['workflow_statuses'][$kind]['reset_to_draft'])
+            || !is_int($workflow_normalization_summary['workflow_statuses'][$kind]['legacy_mapped'])
+            || !is_int($workflow_normalization_summary['workflow_statuses'][$kind]['reset_to_draft'])
+        ) {
+            fs_finanzportal_verify_fail("Workflow normalization summary must track integer counts for {$kind} status corrections.");
+        }
+    }
+
+    if (!isset($workflow_normalization_summary['zahlungstyp']['reset_to_standard'])
+        || !is_int($workflow_normalization_summary['zahlungstyp']['reset_to_standard'])
+        || !isset($workflow_normalization_summary['beschluss_ref']['cleared_for_vorkasse'])
+        || !is_int($workflow_normalization_summary['beschluss_ref']['cleared_for_vorkasse'])
+    ) {
+        fs_finanzportal_verify_fail('Workflow normalization summary must track integer counts for payment type resets and cleared beschluss refs.');
+    }
+
     fs_finanzportal_verify_role_has_caps('portal_admin', ['edit_fachschaft_records', 'publish_fachschaft_records']);
     fs_finanzportal_verify_role_has_caps('asta_finance', array_values(array_unique(array_merge($all_beschluss_read_caps, $all_zahlung_edit_caps))));
     fs_finanzportal_verify_role_has_caps('asta_reviewer', array_values(array_unique(array_merge($all_beschluss_read_caps, $all_zahlung_edit_caps))));

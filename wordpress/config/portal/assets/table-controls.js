@@ -13,6 +13,29 @@ function downloadCsv(root, rows){
   document.body.appendChild(link);link.click();document.body.removeChild(link);
   setTimeout(function(){URL.revokeObjectURL(link.href);},1000);
 }
+function updateUnifiedSummary(root, items){
+  var summary=root.querySelector("[data-unified-summary]");
+  if(!summary){return;}
+  var counts={};
+  var total=0;
+  items.forEach(function(row){
+    var status=row.getAttribute("data-status")||"";
+    counts[status]=(counts[status]||0)+1;
+  });
+  total=items.length;
+  summary.hidden=false;
+  summary.querySelectorAll("[data-unified-summary-count]").forEach(function(el){
+    var status=el.getAttribute("data-unified-summary-count")||"";
+    el.textContent=String(counts[status]||0);
+  });
+  var totalEl=summary.querySelector("[data-unified-summary-total]");
+  if(totalEl){totalEl.textContent=String(total);}
+  var emptyEl=summary.querySelector("[data-unified-summary-empty]");
+  summary.querySelectorAll("[data-unified-summary-count], [data-unified-summary-total]").forEach(function(el){
+    el.parentElement.hidden=items.length===0;
+  });
+  if(emptyEl){emptyEl.hidden=items.length!==0;}
+}
 function enhance(root, mode){
   if(!root||root.dataset.fsfpTableControls==="1"){return;}
   root.dataset.fsfpTableControls="1";
@@ -50,6 +73,7 @@ function enhance(root, mode){
     if(prev){prev.disabled=page<=1;}
     if(next){next.disabled=page>=pages;}
     if(exportButton){exportButton.disabled=items.length===0;}
+    updateUnifiedSummary(root, items);
   }
   function reset(){page=1;render();}
   [search,status,fachschaft].forEach(function(control){if(control){control.addEventListener("input",reset);control.addEventListener("change",reset);}});

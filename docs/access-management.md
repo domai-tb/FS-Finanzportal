@@ -39,9 +39,11 @@ page receives `_members_access_role` metadata:
 - Zahlungsanweisung creation pages allow only `fs_<slug>_finance`,
   administrators, and `portal_admin`; Zahlungsanweisung workflow edit pages also
   allow AStA finance/reviewer roles.
-- Global overview pages allow only AStA finance/reviewer and admin roles.
-  Auditors keep cross-Fachschaft read capabilities, but they do not see the
-  unified AStA overview pages.
+- Global overview pages and the generated reporting page allow only AStA
+  finance/reviewer and admin roles. Auditors keep cross-Fachschaft read
+  capabilities, but they do not see the unified AStA overview or reporting
+  pages.
+- The generated `Betrieb` page allows only `administrator` and `portal_admin`.
 
 The portal menu intentionally contains only Dashboard and Logout. Dashboard
 links are wrapped in Members shortcodes so each user sees only the areas they
@@ -49,6 +51,8 @@ are allowed to access. The generated block header navigation also adds plain
 theme-styled `Beschlüsse` and `Zahlungsanweisungen` links. They are resolved in
 the browser from the current dashboard context: AStA pages point to the two
 unified tables, while Fachschaft pages point inside the current Fachschaft area.
+The dashboard also exposes an AStA-only `Berichte` card that links to the
+generated reporting page, and administrator-only views get a `Betrieb` card.
 The classic menu fallback stays minimal because it cannot hide individual links
 by role without custom runtime PHP.
 

@@ -23,8 +23,16 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
     
     if (!str_contains($dashboard->post_content, 'Alle Beschlüsse öffnen')
         || !str_contains($dashboard->post_content, 'Alle Zahlungsanweisungen öffnen')
+        || !str_contains($dashboard->post_content, 'Berichte öffnen')
     ) {
-        fs_finanzportal_verify_fail('Dashboard must link AStA staff to both unified overview pages.');
+        fs_finanzportal_verify_fail('Dashboard must link AStA staff to the unified overview, reporting, and operations pages.');
+    }
+
+    if (!str_contains($dashboard->post_content, '[members_access role="administrator,portal_admin"]')
+        || !str_contains($dashboard->post_content, 'href="' . home_url('/dashboard/betrieb/') . '"')
+        || !str_contains($dashboard->post_content, '>Betrieb<')
+    ) {
+        fs_finanzportal_verify_fail('Dashboard must include the admin-only Betrieb card.');
     }
     
     $menu = wp_get_nav_menu_object('Portal Navigation');
@@ -81,13 +89,17 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
     $global_pages = [
         fs_finanzportal_page_by_path('dashboard/beschluesse'),
         fs_finanzportal_page_by_path('dashboard/zahlungsanweisungen'),
+        fs_finanzportal_page_by_path('dashboard/berichte'),
     ];
     
     foreach ($global_pages as $global_page) {
         fs_finanzportal_verify_page_roles($global_page, fs_finanzportal_global_overview_roles());
     }
+
+    $operations_page = fs_finanzportal_page_by_path('dashboard/betrieb');
+    fs_finanzportal_verify_page_roles($operations_page, ['administrator', 'portal_admin']);
     
-    $expected_direct_children = ['beschluesse', 'informatik', 'maschinenbau', 'philosophie', 'zahlungsanweisungen'];
+    $expected_direct_children = ['berichte', 'beschluesse', 'betrieb', 'informatik', 'maschinenbau', 'philosophie', 'zahlungsanweisungen'];
     $actual_direct_children = get_posts([
         'post_type' => 'page',
         'post_status' => 'any',

@@ -176,7 +176,7 @@ function fs_finanzportal_verify_user_cannot_view(string $login, WP_Post $page): 
     }
 }
 
-function fs_finanzportal_render_page_as_user(string $login, WP_Post $page): string
+function fs_finanzportal_render_page_as_user(string $login, WP_Post $page, array $query_args = []): string
 {
     $user = get_user_by('login', $login);
     if (!$user) {
@@ -185,9 +185,51 @@ function fs_finanzportal_render_page_as_user(string $login, WP_Post $page): stri
 
     wp_set_current_user((int) $user->ID);
 
+    $previous_get = $_GET;
+    $previous_request = $_REQUEST;
+    $previous_query_string = $_SERVER['QUERY_STRING'] ?? null;
+
+    if ($query_args !== []) {
+        $_GET = array_merge($_GET, $query_args);
+        $_REQUEST = array_merge($_REQUEST, $query_args);
+        $_SERVER['QUERY_STRING'] = http_build_query($query_args, '', '&', PHP_QUERY_RFC3986);
+    }
+
     ob_start();
-    $rendered = do_shortcode($page->post_content);
-    ob_end_clean();
+    try {
+        $rendered = do_shortcode($page->post_content);
+    } finally {
+        ob_end_clean();
+        $_GET = $previous_get;
+        $_REQUEST = $previous_request;
+        if ($previous_query_string === null) {
+            unset($_SERVER['QUERY_STRING']);
+        } else {
+            $_SERVER['QUERY_STRING'] = $previous_query_string;
+        }
+    }
 
     return (string) $rendered;
+}
+
+function fs_finanzportal_first_user_login_with_role(string $role): string
+{
+    $users = get_users([
+        'role' => $role,
+        'number' => 1,
+        'fields' => ['user_login'],
+    ]);
+    $user = $users[0] ?? null;
+    $login = is_object($user) ? (string) ($user->user_login ?? '') : (string) $user;
+
+    if ($login === '') {
+        fs_finanzportal_verify_fail("No user with role {$role} is available.");
+    }
+
+    return $login;
+}
+
+function fs_finanzportal_render_page_as_role(string $role, WP_Post $page): string
+{
+    return fs_finanzportal_render_page_as_user(fs_finanzportal_first_user_login_with_role($role), $page);
 }
