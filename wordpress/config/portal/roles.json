@@ -1,0 +1,8 @@
+{
+  "admin_edit_access_cap": "fsfp_use_wp_admin",
+  "global_access_roles": ["administrator", "portal_admin", "asta_finance", "asta_reviewer", "auditor"],
+  "global_overview_roles": ["administrator", "portal_admin", "asta_finance", "asta_reviewer"],
+  "global_beschluss_edit_roles": ["administrator", "portal_admin"],
+  "global_zahlung_edit_roles": ["administrator", "portal_admin", "asta_finance", "asta_reviewer"],
+  "hidden_admin_bar_base_roles": ["asta_finance", "asta_reviewer", "auditor", "fs_portal_empty", "subscriber"]
+}

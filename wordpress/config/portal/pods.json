@@ -1,0 +1,88 @@
+{
+  "workflows": {
+    "beschluss": {
+      "icon": "dashicons-portfolio",
+      "fields": [
+        { "name": "fachschaft", "label": "Fachschaft", "type": "text" },
+        { "name": "beschlussdatum", "label": "Beschlussdatum", "type": "date", "required": true },
+        { "name": "betrag", "label": "Betrag", "type": "currency", "required": true },
+        { "name": "zweck_beschreibung", "label": "Zweck / Beschreibung", "type": "paragraph", "required": true },
+        {
+          "name": "beschluss_status",
+          "label": "Status",
+          "type": "status",
+          "options": {
+            "draft": "Entwurf",
+            "approved": "Genehmigt",
+            "rejected": "Abgelehnt"
+          }
+        },
+        { "name": "decided_at", "label": "Entschieden am", "type": "date" },
+        { "name": "decided_by", "label": "Entschieden durch", "type": "text" },
+        { "name": "decision_note", "label": "Entscheidungshinweis", "type": "paragraph" },
+        { "name": "belege", "label": "Belege / Anhänge", "type": "file" },
+        { "name": "notes", "label": "Notizen / Rückfragen", "type": "paragraph" }
+      ]
+    },
+    "zahlung": {
+      "icon": "dashicons-money-alt",
+      "fields": [
+        { "name": "fachschaft", "label": "Fachschaft", "type": "text" },
+        {
+          "name": "zahlungstyp",
+          "label": "Zahlungstyp",
+          "type": "pick",
+          "default": "standard",
+          "required": true,
+          "options": {
+            "standard": "Standard",
+            "vorkasse": "Vorkasse"
+          }
+        },
+        { "name": "betrag", "label": "Betrag", "type": "currency", "required": true },
+        { "name": "verwendungszweck", "label": "Verwendungszweck", "type": "paragraph", "required": true },
+        {
+          "name": "vorkasse_method",
+          "label": "Vorkasse Methode",
+          "type": "pick",
+          "options": {
+            "bar": "Bar",
+            "ueberweisung": "Überweisung"
+          }
+        },
+        { "name": "vorkasse_begruendung", "label": "Begründung für Vorkasse", "type": "paragraph" },
+        { "name": "empfaenger_details", "label": "Empfänger Details / Kontoverbindung", "type": "paragraph" },
+        {
+          "name": "zahlungs_status",
+          "label": "Status",
+          "type": "status",
+          "options": {
+            "draft": "Entwurf",
+            "submitted": "Eingereicht",
+            "correction_requested": "Rückfrage",
+            "cancelled": "Storniert",
+            "executed": "Ausgeführt"
+          }
+        },
+        { "name": "submitted_at", "label": "Eingereicht am", "type": "date" },
+        { "name": "reviewed_at", "label": "Geprüft am", "type": "date" },
+        { "name": "reviewed_by", "label": "Geprüft durch", "type": "text" },
+        { "name": "clarification_requested_at", "label": "Rückfrage gestellt am", "type": "date" },
+        { "name": "clarification_requested_by", "label": "Rückfrage gestellt durch", "type": "text" },
+        { "name": "clarification_request", "label": "Rückfrage", "type": "paragraph" },
+        { "name": "clarification_answered_at", "label": "Rückfrage beantwortet am", "type": "date" },
+        { "name": "clarification_answered_by", "label": "Rückfrage beantwortet durch", "type": "text" },
+        { "name": "clarification_response", "label": "Antwort auf Rückfrage", "type": "paragraph" },
+        { "name": "executed_at", "label": "Ausgeführt am", "type": "date" },
+        { "name": "executed_by", "label": "Ausgeführt durch", "type": "text" },
+        { "name": "workflow_note", "label": "Workflowhinweis", "type": "paragraph" },
+        { "name": "vendor_name", "label": "Empfänger / Lieferant", "type": "text" },
+        { "name": "invoice_number", "label": "Rechnungsnummer / Referenz", "type": "text" },
+        { "name": "invoice_date", "label": "Rechnungsdatum", "type": "date" },
+        { "name": "belege", "label": "Belege / Anhänge", "type": "file" },
+        { "name": "beschluss_ref", "label": "Beschluss", "type": "beschluss_reference" },
+        { "name": "notes", "label": "Notizen / Rückfragen", "type": "paragraph" }
+      ]
+    }
+  }
+}

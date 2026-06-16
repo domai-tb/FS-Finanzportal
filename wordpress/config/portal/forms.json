@@ -1,0 +1,11 @@
+{
+  "beschluss": {
+    "create": "post_title,beschlussdatum,betrag,zweck_beschreibung,belege,notes",
+    "edit": "post_title,beschlussdatum,betrag,zweck_beschreibung,beschluss_status,decided_at,decided_by,decision_note,belege,notes"
+  },
+  "zahlung": {
+    "create": "post_title,zahlungstyp,betrag,verwendungszweck,beschluss_ref,vorkasse_method,vorkasse_begruendung,empfaenger_details,vendor_name,invoice_number,invoice_date,belege,notes",
+    "finance_edit": "post_title,zahlungstyp,betrag,verwendungszweck,zahlungs_status,submitted_at,clarification_answered_at,clarification_answered_by,clarification_response,beschluss_ref,vorkasse_method,vorkasse_begruendung,empfaenger_details,vendor_name,invoice_number,invoice_date,belege,workflow_note,notes",
+    "review_edit": "zahlungstyp,vorkasse_method,vorkasse_begruendung,empfaenger_details,zahlungs_status,reviewed_at,reviewed_by,clarification_requested_at,clarification_requested_by,clarification_request,executed_at,executed_by,workflow_note,notes"
+  }
+}
