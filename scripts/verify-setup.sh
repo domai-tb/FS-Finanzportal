@@ -9,6 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=scripts/verify/env.sh
 source "$SCRIPT_DIR/verify/env.sh"
+# shellcheck source=scripts/verify/reporting-calculation.sh
+bash "$SCRIPT_DIR/verify/reporting-calculation.sh"
 # shellcheck source=scripts/verify/plugins.sh
 source "$SCRIPT_DIR/verify/plugins.sh"
 # shellcheck source=scripts/verify/wordpress.sh

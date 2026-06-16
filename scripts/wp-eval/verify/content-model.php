@@ -114,6 +114,16 @@ function fs_finanzportal_verify_content_model(): array
                         fs_finanzportal_verify_fail("Pods field {$field_name} on {$post_type} must be a paragraph field.");
                     }
                 }
+
+                if ($field_name === 'belege') {
+                    if (($field['type'] ?? '') !== 'file'
+                        || ($field['file_uploader'] ?? '') !== 'attachment'
+                        || ($field['file_attachment_tab'] ?? '') !== 'upload'
+                        || (int) ($field['file_attachment_current_post_only'] ?? 0) !== 1
+                    ) {
+                        fs_finanzportal_verify_fail("Pods field belege on {$post_type} must restrict the media library to the current workflow record.");
+                    }
+                }
             }
     
             $all_read_caps = array_merge($all_read_caps, fs_finanzportal_read_caps($capability_type));

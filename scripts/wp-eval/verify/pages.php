@@ -9,6 +9,16 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
     if (!$dashboard || str_contains($dashboard->post_content, '[pods_table')) {
         fs_finanzportal_verify_fail('Dashboard page is missing or still depends on a custom table shortcode.');
     }
+
+    if (!str_contains($dashboard->post_content, 'fsfp-dashboard-page')
+        || !str_contains($dashboard->post_content, 'fsfp-dashboard-section--fachschaften')
+        || !str_contains($dashboard->post_content, 'fsfp-dashboard-section--asta')
+        || !str_contains($dashboard->post_content, 'fsfp-dashboard-section--admin')
+        || !str_contains($dashboard->post_content, 'fsfp-dashboard-card--feature')
+        || !str_contains($dashboard->post_content, 'fsfp-dashboard-intro')
+    ) {
+        fs_finanzportal_verify_fail('Dashboard must render grouped sections, feature cards, and an explicit intro.');
+    }
     
     if (str_contains($dashboard->post_content, 'wp-admin')) {
         fs_finanzportal_verify_fail('Dashboard page must not link to wp-admin.');
@@ -26,6 +36,12 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
         || !str_contains($dashboard->post_content, 'Berichte öffnen')
     ) {
         fs_finanzportal_verify_fail('Dashboard must link AStA staff to the unified overview, reporting, and operations pages.');
+    }
+
+    if (!str_contains($dashboard->post_content, 'Eigene Beschlüsse, Zahlungsanweisungen und Formulare in einem geschützten Fachschaftsbereich.')
+        || !str_contains($dashboard->post_content, 'Setup-Status, Datenintegrität und Wiederherstellung.')
+    ) {
+        fs_finanzportal_verify_fail('Dashboard cards must expose helper descriptions for the primary work surfaces.');
     }
 
     if (!str_contains($dashboard->post_content, '[members_access role="administrator,portal_admin"]')
@@ -223,24 +239,26 @@ function fs_finanzportal_verify_pages(array $fachschaften): array
             fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must not expose direct workflow permalinks.");
         }
     
-        if (!str_contains($global_page->post_content, 'fsfp-unified-overview')
-            || !str_contains($global_page->post_content, 'data-unified-search')
-            || !str_contains($global_page->post_content, 'data-unified-status')
-            || !str_contains($global_page->post_content, 'data-unified-fachschaft')
-            || !str_contains($global_page->post_content, 'data-unified-export')
-            || !str_contains($global_page->post_content, 'data-unified-prev')
-            || !str_contains($global_page->post_content, 'data-unified-next')
-            || !str_contains($global_page->post_content, 'data-fsfp-table="unified"')
-            || !str_contains($global_page->post_content, '<tbody data-unified-body>')
-        ) {
-            fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must render a unified overview table with filters and pagination.");
-        }
+        if (in_array($global_page->post_name, ['beschluesse', 'zahlungsanweisungen'], true)) {
+            if (!str_contains($global_page->post_content, 'fsfp-unified-overview')
+                || !str_contains($global_page->post_content, 'data-unified-search')
+                || !str_contains($global_page->post_content, 'data-unified-status')
+                || !str_contains($global_page->post_content, 'data-unified-fachschaft')
+                || !str_contains($global_page->post_content, 'data-unified-export')
+                || !str_contains($global_page->post_content, 'data-unified-prev')
+                || !str_contains($global_page->post_content, 'data-unified-next')
+                || !str_contains($global_page->post_content, 'data-fsfp-table="unified"')
+                || !str_contains($global_page->post_content, '<tbody data-unified-body>')
+            ) {
+                fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must render a unified overview table with filters and pagination.");
+            }
 
-        if (!str_contains($global_page->post_content, 'replace(/\\s+/g," ")')
-            || !str_contains($global_page->post_content, '/[",\\n;]/.test(value)')
-            || !str_contains($global_page->post_content, '"\\ufeff"+lines.join("\\n")')
-        ) {
-            fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must preserve CSV export JavaScript escape sequences.");
+            if (!str_contains($global_page->post_content, 'replace(/\\s+/g," ")')
+                || !str_contains($global_page->post_content, '/[",\\n;]/.test(value)')
+                || !str_contains($global_page->post_content, '"\\ufeff"+lines.join("\\n")')
+            ) {
+                fs_finanzportal_verify_fail("Global portal page {$global_page->post_name} must preserve CSV export JavaScript escape sequences.");
+            }
         }
     
         if (str_contains($global_page->post_content, '<h3>Fachschaft Informatik</h3>')

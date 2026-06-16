@@ -36,9 +36,9 @@ page receives `_members_access_role` metadata:
   overview pages instead of Fachschaft-specific list pages.
 - Beschluss creation and edit pages allow only `fs_<slug>_finance`,
   administrators, and `portal_admin`.
-- Zahlungsanweisung creation pages allow only `fs_<slug>_finance`,
-  administrators, and `portal_admin`; Zahlungsanweisung workflow edit pages also
-  allow AStA finance/reviewer roles.
+- Zahlungsanweisung creation pages allow `fs_<slug>_finance` plus the configured
+  `global_beschluss_edit_roles` (currently `administrator` and `portal_admin`);
+  Zahlungsanweisung workflow edit pages also allow AStA finance/reviewer roles.
 - Global overview pages and the generated reporting page allow only AStA
   finance/reviewer and admin roles. Auditors keep cross-Fachschaft read
   capabilities, but they do not see the unified AStA overview or reporting
@@ -76,3 +76,11 @@ Without custom runtime PHP or a paid/pro access-control plugin, one shared
 workflow table filtered by Keycloak claims is not a reliable security boundary.
 The implemented security boundary is therefore one scoped post type per
 Fachschaft, strict role capabilities, and Members page permissions.
+
+WordPress media files are also public files by default. The `belege` Pods fields
+therefore restrict the media picker to attachments on the current workflow
+record so users cannot browse unrelated uploads through the portal form. This
+does not make `/wp-content/uploads/...` URLs private. Enforcing Fachschaft
+permissions on direct file downloads requires a runtime download gate or a
+dedicated protected-media plugin that checks the parent Beschluss or
+Zahlungsanweisung before streaming the file.

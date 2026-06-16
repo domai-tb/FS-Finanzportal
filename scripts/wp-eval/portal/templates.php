@@ -110,6 +110,21 @@ function fsfp_cli_mailto_link(string $label, string $subject, string $body = '',
     return '<a class="fsfp-mailto-link" href="mailto:' . esc_attr($email) . '?' . esc_attr(http_build_query($params, '', '&', PHP_QUERY_RFC3986)) . '">' . esc_html($label) . '</a>';
 }
 
+function fsfp_cli_recovery_panel(string $title, string $body, array $links = []): string
+{
+    $items = '';
+    foreach ($links as $link) {
+        if (empty($link['label']) || empty($link['url'])) {
+            continue;
+        }
+        $items .= '<li><a href="' . esc_url($link['url']) . '">' . esc_html($link['label']) . '</a></li>';
+    }
+
+    $links_markup = $items !== '' ? '<ul class="fsfp-recovery-links">' . $items . '</ul>' : '';
+
+    return '<section class="fsfp-action-panel fsfp-recovery-panel"><h3>' . esc_html($title) . '</h3><p>' . esc_html($body) . '</p>' . $links_markup . '</section>';
+}
+
 function fsfp_cli_workflow_normalization_summary_markup(): string
 {
     $summary = get_option('fsfp_workflow_normalization_summary', []);
@@ -212,14 +227,16 @@ function fsfp_cli_budget_report(array $fachschaften): string
     return '<!-- wp:heading {"level":3} --><h3>Budgetübersicht</h3><!-- /wp:heading -->'
         . '<div class="fsfp-budget-report" data-fsfp-budget-report>'
         . '<div hidden>' . $sources . '</div>'
+        . '<!-- wp:paragraph --><p>Die Budgetübersicht zählt genehmigte Beschlüsse und zugeordnete Zahlungsanweisungen der Fachschaften. Wenn Beträge 0 sind, gibt es in dieser Auswertung noch keine freigegebenen Werte.</p><!-- /wp:paragraph -->'
         . '<div class="fsfp-budget-summary" data-budget-report-summary hidden>'
         . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Gesamt beschlossen</span><strong data-budget-total>Wird berechnet...</strong></div>'
         . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Gesamt Zahlungsanweisungen</span><strong data-budget-spent>Wird berechnet...</strong></div>'
         . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Gesamt offen</span><strong data-budget-open>Wird berechnet...</strong></div>'
+        . '<div class="fsfp-budget-summary__item"><span class="fsfp-budget-summary__label">Datensätze</span><strong data-budget-row-count>Wird berechnet...</strong></div>'
         . '</div>'
-        . '<p class="fsfp-budget-report-empty" data-budget-report-empty hidden>Für die Budgetübersicht liegen noch keine genehmigten Beschlüsse oder Zahlungsanweisungen vor.</p>'
+        . '<p class="fsfp-budget-report-empty" data-budget-report-empty hidden>Für die Budgetübersicht liegen noch keine genehmigten Beschlüsse oder zugeordneten Zahlungsanweisungen vor. Prüfe zuerst die Fachschaftslisten oder lege freigegebene Vorgänge an.</p>'
         . '<table class="fsfp-table" data-budget-report-table><thead><tr><th>Fachschaft</th><th>Beschlossen</th><th>Zahlungsanweisungen</th><th>Offen</th></tr></thead><tbody data-budget-report-body></tbody></table>'
-        . '<script>(function(){var root=document.currentScript.closest("[data-fsfp-budget-report]");if(!root){return;}function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}function money(v){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);}var rows={},budgetByBeschluss={},totalBudget=0,totalSpent=0;root.querySelectorAll(".fsfp-report-budget-row").forEach(function(el){var f=el.dataset.fachschaft,label=el.dataset.fachschaftLabel||f,amount=parseAmount(el.dataset.budgetAmount);rows[f]=rows[f]||{label:label,budget:0,spent:0};rows[f].budget+=amount;budgetByBeschluss[el.dataset.beschlussId]=f;});root.querySelectorAll(".fsfp-report-payment-row").forEach(function(el){if(el.dataset.paymentType==="vorkasse"){return;}var f=budgetByBeschluss[el.dataset.beschlussId]||el.dataset.fachschaft;if(!rows[f]){return;}rows[f].spent+=parseAmount(el.dataset.paymentAmount);});var body=root.querySelector("[data-budget-report-body]"),summary=root.querySelector("[data-budget-report-summary]"),empty=root.querySelector("[data-budget-report-empty]"),table=root.querySelector("[data-budget-report-table]");if(!body){return;}var keys=Object.keys(rows).sort();if(!keys.length){body.innerHTML="";if(summary){summary.hidden=true;}if(empty){empty.hidden=false;}if(table){table.hidden=true;}return;}body.innerHTML=keys.map(function(f){var r=rows[f];totalBudget+=r.budget;totalSpent+=r.spent;return "<tr><td>"+r.label+"</td><td>"+money(r.budget)+"</td><td>"+money(r.spent)+"</td><td>"+money(r.budget-r.spent)+"</td></tr>";}).join("");if(summary){summary.hidden=false;var budgetEl=root.querySelector("[data-budget-total]"),spentEl=root.querySelector("[data-budget-spent]"),openEl=root.querySelector("[data-budget-open]");if(budgetEl){budgetEl.textContent=money(totalBudget);}if(spentEl){spentEl.textContent=money(totalSpent);}if(openEl){openEl.textContent=money(totalBudget-totalSpent);}}if(empty){empty.hidden=true;}if(table){table.hidden=false;}})();</script>'
+        . '<script>(function(){var root=document.currentScript.closest("[data-fsfp-budget-report]");if(!root){return;}function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}function money(v){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);}var rows={},budgetByBeschluss={},totalBudget=0,totalSpent=0,totalRows=0;root.querySelectorAll(".fsfp-report-budget-row").forEach(function(el){totalRows+=1;var f=el.dataset.fachschaft,label=el.dataset.fachschaftLabel||f,amount=parseAmount(el.dataset.budgetAmount);rows[f]=rows[f]||{label:label,budget:0,spent:0};rows[f].budget+=amount;budgetByBeschluss[el.dataset.beschlussId]=f;});root.querySelectorAll(".fsfp-report-payment-row").forEach(function(el){totalRows+=1;if(el.dataset.paymentType==="vorkasse"){return;}var f=budgetByBeschluss[el.dataset.beschlussId]||el.dataset.fachschaft;if(!rows[f]){return;}rows[f].spent+=parseAmount(el.dataset.paymentAmount);});var body=root.querySelector("[data-budget-report-body]"),summary=root.querySelector("[data-budget-report-summary]"),empty=root.querySelector("[data-budget-report-empty]"),table=root.querySelector("[data-budget-report-table]"),rowCount=root.querySelector("[data-budget-row-count]");if(!body){return;}var keys=Object.keys(rows).sort();if(!keys.length){body.innerHTML="";if(summary){summary.hidden=true;}if(empty){empty.hidden=false;}if(table){table.hidden=true;}if(rowCount){rowCount.textContent=String(totalRows);}}else{body.innerHTML=keys.map(function(f){var r=rows[f];totalBudget+=r.budget;totalSpent+=r.spent;return "<tr><td>"+r.label+"</td><td>"+money(r.budget)+"</td><td>"+money(r.spent)+"</td><td>"+money(r.budget-r.spent)+"</td></tr>";}).join("");if(summary){summary.hidden=false;var budgetEl=root.querySelector("[data-budget-total]"),spentEl=root.querySelector("[data-budget-spent]"),openEl=root.querySelector("[data-budget-open]");if(budgetEl){budgetEl.textContent=money(totalBudget);}if(spentEl){spentEl.textContent=money(totalSpent);}if(openEl){openEl.textContent=money(totalBudget-totalSpent);}}if(rowCount){rowCount.textContent=String(totalRows);}if(empty){empty.hidden=true;}if(table){table.hidden=false;}}})();</script>'
         . '</div>';
 }
 
@@ -236,7 +253,7 @@ function fsfp_cli_reporting_sources(string $beschluss_post_type, string $zahlung
     fsfp_cli_upsert_pods_template(
         $zahlung_template,
         $zahlung_template,
-        '<span class="fsfp-report-row fsfp-report-row--zahlung" data-kind="zahlung" data-fachschaft="' . esc_attr($fachschaft_slug) . '" data-fachschaft-label="' . esc_attr($fachschaft_label) . '" data-title="{@post_title}" data-status="{@zahlungs_status}" data-report-date="{@submitted_at}" data-created-at="{@post_date}" data-amount="{@betrag}" data-payment-type="{@zahlungstyp}" data-submitted-at="{@submitted_at}" data-reviewed-at="{@reviewed_at}" data-executed-at="{@executed_at}" data-beschluss-id="{@beschluss_ref.ID}"></span>'
+        '<span class="fsfp-report-row fsfp-report-row--zahlung" data-kind="zahlung" data-fachschaft="' . esc_attr($fachschaft_slug) . '" data-fachschaft-label="' . esc_attr($fachschaft_label) . '" data-title="{@post_title}" data-status="{@zahlungs_status}" data-report-date="{@executed_at}" data-created-at="{@post_date}" data-amount="{@betrag}" data-payment-type="{@zahlungstyp}" data-submitted-at="{@submitted_at}" data-reviewed-at="{@reviewed_at}" data-executed-at="{@executed_at}" data-beschluss-id="{@beschluss_ref.ID}"></span>'
     );
 
     return '<!-- wp:shortcode -->' . "\n"
@@ -315,7 +332,7 @@ function fsfp_cli_list_shortcode(string $post_type, string $kind, string $fachsc
         . '[pods name="' . esc_attr($post_type) . '" template="' . esc_attr($template_slug) . '" expires="-1" limit="-1" shortcodes="1"]' . "\n"
         . '<!-- /wp:shortcode -->' . "\n"
         . '</tbody></table>'
-        . '<p class="fsfp-unified-empty" data-scoped-empty hidden>Keine passenden Einträge gefunden.</p>'
+        . '<p class="fsfp-unified-empty" data-scoped-empty hidden>Keine passenden Einträge gefunden. Suche leeren oder Status auf „Alle Status“ zurücksetzen.</p>'
         . '<div class="fsfp-unified-pagination"><button type="button" data-scoped-prev>Zurück</button><span data-scoped-page></span><button type="button" data-scoped-next>Weiter</button></div>'
         . fsfp_cli_table_controls_script()
         . '</div><!-- /wp:group -->';
@@ -376,7 +393,7 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
             . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Rückfrage</span><strong data-unified-summary-count="correction_requested">0</strong></div>'
             . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Ausgeführt</span><strong data-unified-summary-count="executed">0</strong></div>'
             . '<div class="fsfp-unified-summary__item"><span class="fsfp-unified-summary__label">Storniert</span><strong data-unified-summary-count="cancelled">0</strong></div>'
-            . '<p class="fsfp-unified-summary-empty" data-unified-summary-empty hidden>Keine passenden Zahlungsanweisungen gefunden.</p>'
+            . '<p class="fsfp-unified-summary-empty" data-unified-summary-empty hidden>Keine passenden Zahlungsanweisungen gefunden. Filter auf „Alle Fachschaften“ und „Alle Status“ zurücksetzen.</p>'
             . '</div>';
     }
 
@@ -390,7 +407,12 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
         $sources .= fsfp_cli_unified_overview_source($types[$kind === 'beschluss' ? 'beschluss' : 'zahlung'], $kind, $slug, $label);
     }
 
+    $intro = $is_beschluss
+        ? '<!-- wp:paragraph --><p class="fsfp-list-intro">Diese Übersicht kombiniert alle Fachschaften. Filter zuerst nach Status und Fachschaft, dann öffne die Details oder Bearbeitung.</p><!-- /wp:paragraph -->'
+        : '<!-- wp:paragraph --><p class="fsfp-list-intro">Diese Übersicht kombiniert alle Fachschaften. Die Status-Queue hilft dir, offene Arbeit schneller zu finden.</p><!-- /wp:paragraph -->';
+
     return '<!-- wp:heading --><h2>' . esc_html($title) . '</h2><!-- /wp:heading -->'
+        . $intro
         . '<!-- wp:group {"align":"wide"} --><div id="' . esc_attr($table_id) . '" class="wp-block-group alignwide fsfp-unified-overview fsfp-table-wrap" data-fsfp-table="unified" data-export-name="' . esc_attr($table_id) . '">'
         . $summary
         . '<div class="fsfp-unified-controls">'
@@ -400,7 +422,7 @@ function fsfp_cli_unified_overview_page(string $kind, array $fachschaften): stri
         . '<button type="button" class="fsfp-export-button" data-unified-export>CSV exportieren</button>'
         . '</div>'
         . '<table class="fsfp-table fsfp-unified-table"><thead><tr><th>Fachschaft</th><th>ID</th><th>Titel</th><th>Status</th>' . $type_th . $date_th . '<th>Betrag</th><th>Aktionen</th></tr></thead><tbody data-unified-body>' . $sources . '</tbody></table>'
-        . '<p class="fsfp-unified-empty" data-unified-empty hidden>Keine passenden Einträge gefunden.</p>'
+        . '<p class="fsfp-unified-empty" data-unified-empty hidden>Keine passenden Einträge gefunden. Filter auf „Alle Fachschaften“ und „Alle Status“ zurücksetzen, oder die Fachschaft in der ersten Spalte prüfen.</p>'
         . '<div class="fsfp-unified-pagination"><button type="button" data-unified-prev>Zurück</button><span data-unified-page></span><button type="button" data-unified-next>Weiter</button></div>'
         . fsfp_cli_table_controls_script()
         . '</div><!-- /wp:group -->';
@@ -417,45 +439,47 @@ function fsfp_cli_reporting_page(array $fachschaften): string
     }
 
     return '<!-- wp:heading --><h2>Berichte</h2><!-- /wp:heading -->'
-        . '<!-- wp:paragraph --><p>AStA-Berichte über Periodensummen, offene Arbeit, ausgeführte Zahlungen und Fachschaftssummen.</p><!-- /wp:paragraph -->'
+        . '<!-- wp:paragraph --><p class="fsfp-report-intro">AStA-Berichte über Periodensummen, offene Arbeit, ausgeführte Zahlungen und Fachschaftssummen.</p><!-- /wp:paragraph -->'
+        . '<!-- wp:paragraph --><p class="fsfp-report-intro">Genehmigte Beschlüsse und ausgeführte Zahlungen steuern die Geldsummen. Der Datensatzwert zeigt, ob die Auswertung überhaupt Workflowdaten enthält, auch wenn noch keine Beträge freigegeben wurden.</p><!-- /wp:paragraph -->'
+        . '<!-- wp:group --><div class="wp-block-group fsfp-report-context"><p class="fsfp-report-context__lead">Summen und Tabellen stammen aus denselben setup-generierten Quellen.</p><ul class="fsfp-report-context__list"><li>Genehmigte Beschlüsse fließen in die Budgetsumme ein.</li><li>Ausgeführte Zahlungen fließen in die Ausgaben und die Fachschaftssummen ein.</li><li>Offene Vorgänge umfassen Entwurf, Eingereicht und Rückfrage.</li></ul></div><!-- /wp:group -->'
         . '<div class="fsfp-reporting" data-fsfp-reporting>'
         . '<div hidden>' . $sources . '</div>'
         . '<div class="fsfp-report-summary" data-report-summary hidden>'
-        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Genehmigt</span><strong data-report-total-budget>0,00 EUR</strong></div>'
-        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Ausgeführt</span><strong data-report-total-executed>0,00 EUR</strong></div>'
-        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Offen</span><strong data-report-total-open>0,00 EUR</strong></div>'
-        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Offene Vorgänge</span><strong data-report-total-open-count>0</strong></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Genehmigt</span><strong data-report-total-budget>0,00 EUR</strong><span class="fsfp-report-summary__note">Nur genehmigte Beschlüsse</span></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Ausgeführt</span><strong data-report-total-executed>0,00 EUR</strong><span class="fsfp-report-summary__note">Nur ausgeführte Zahlungen</span></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Offen</span><strong data-report-total-open>0,00 EUR</strong><span class="fsfp-report-summary__note">Entwurf, Eingereicht, Rückfrage</span></div>'
+        . '<div class="fsfp-report-summary__item"><span class="fsfp-report-summary__label">Datensätze</span><strong data-report-total-rows>0</strong><span class="fsfp-report-summary__note">Quer über alle Fachschaften</span></div>'
         . '</div>'
-        . '<p class="fsfp-report-empty" data-report-empty hidden>Für den Bericht liegen noch keine Workflowdaten vor.</p>'
+        . '<p class="fsfp-report-empty" data-report-empty hidden>Für den Bericht liegen noch keine Workflowdaten vor. Prüfe die Fachschaftslisten, ob nur Entwürfe, Rückfragen oder nicht freigegebene Vorgänge vorhanden sind.</p>'
         . '<section class="fsfp-report-section">'
         . '<h3>Periodenübersicht</h3>'
         . '<table class="fsfp-table fsfp-report-table"><thead><tr><th>Zeitraum</th><th>Beschlüsse</th><th>Zahlungsanweisungen</th><th>Ausgeführt</th><th>Offen</th></tr></thead><tbody data-report-period-body></tbody></table>'
-        . '<p class="fsfp-report-section-empty" data-report-period-empty hidden>Keine Periodendaten vorhanden.</p>'
+        . '<p class="fsfp-report-section-empty" data-report-period-empty hidden>Keine Periodendaten vorhanden. Wenn Einträge existieren, liegen sie möglicherweise ohne Datum oder nur als Entwürfe vor.</p>'
         . '</section>'
         . '<section class="fsfp-report-section">'
         . '<h3>Offene Arbeit</h3>'
         . '<table class="fsfp-table fsfp-report-table"><thead><tr><th>Status</th><th>Vorgänge</th><th>Betrag</th></tr></thead><tbody data-report-status-body></tbody></table>'
-        . '<p class="fsfp-report-section-empty" data-report-status-empty hidden>Keine offenen Vorgänge vorhanden.</p>'
+        . '<p class="fsfp-report-section-empty" data-report-status-empty hidden>Keine offenen Vorgänge vorhanden. Wenn du Werte erwartest, prüfe zuerst, ob die Vorgänge bereits als ausgeführt oder storniert markiert wurden.</p>'
         . '</section>'
         . '<section class="fsfp-report-section">'
         . '<h3>Fachschaftsübersicht</h3>'
         . '<table class="fsfp-table fsfp-report-table"><thead><tr><th>Fachschaft</th><th>Beschlossen</th><th>Ausgeführt</th><th>Offen</th><th>Offene Vorgänge</th></tr></thead><tbody data-report-fachschaft-body></tbody></table>'
-        . '<p class="fsfp-report-section-empty" data-report-fachschaft-empty hidden>Keine Fachschaftsdaten vorhanden.</p>'
+        . '<p class="fsfp-report-section-empty" data-report-fachschaft-empty hidden>Keine Fachschaftsdaten vorhanden. Prüfe, ob die Auswertung auf den richtigen Fachschaften filtert oder ob noch keine freigegebenen Vorgänge importiert wurden.</p>'
         . '</section>'
         . '<script>(function(){'
         . 'var root=document.currentScript.closest("[data-fsfp-reporting]");if(!root){return;}'
         . 'function parseAmount(text){var value=(text||"").replace(/ /g,"").replace(/[^0-9,.-]/g,"");if(!value){return 0;}var comma=value.lastIndexOf(","),dot=value.lastIndexOf(".");if(comma>dot){value=value.replace(/[.]/g,"").replace(",",".");}else if(dot>comma){value=value.replace(/,/g,"");}else{value=value.replace(",",".");}var parsed=parseFloat(value);return Number.isFinite(parsed)?parsed:0;}'
-        . 'function parseDate(value){var raw=(value||"").trim();if(!raw){return null;}var direct=new Date(raw);if(!Number.isNaN(direct.getTime())){return direct;}var match=raw.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);if(match){return new Date(Number(match[1]),Number(match[2])-1,Number(match[3]||1));}return null;}'
+        . 'function parseDate(value){var raw=(value||"").trim();if(!raw){return null;}var direct=new Date(raw);if(!Number.isNaN(direct.getTime())){return direct;}var match=raw.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);if(match){return new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]||1)));}return null;}'
         . 'function money(value){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(value);}'
-        . 'function monthKey(date){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0");}'
-        . 'function monthLabel(key){var parts=key.split("-");return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(Number(parts[0]),Number(parts[1])-1,1));}'
+        . 'function monthKey(date){return date.getUTCFullYear()+"-"+String(date.getUTCMonth()+1).padStart(2,"0");}'
+        . 'function monthLabel(key){var parts=key.split("-");return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(Date.UTC(Number(parts[0]),Number(parts[1])-1,1)));}'
         . 'function formatCell(count,amount){return count+" · "+money(amount);}'
         . 'var rows=Array.from(root.querySelectorAll(".fsfp-report-row"));'
         . 'var summary=root.querySelector("[data-report-summary]");'
         . 'var summaryBudget=root.querySelector("[data-report-total-budget]");'
         . 'var summaryExecuted=root.querySelector("[data-report-total-executed]");'
         . 'var summaryOpen=root.querySelector("[data-report-total-open]");'
-        . 'var summaryOpenCount=root.querySelector("[data-report-total-open-count]");'
+        . 'var summaryRows=root.querySelector("[data-report-total-rows]");'
         . 'var empty=root.querySelector("[data-report-empty]");'
         . 'var periodBody=root.querySelector("[data-report-period-body]");'
         . 'var statusBody=root.querySelector("[data-report-status-body]");'
@@ -465,10 +489,10 @@ function fsfp_cli_reporting_page(array $fachschaften): string
         . 'var fachschaftEmpty=root.querySelector("[data-report-fachschaft-empty]");'
         . 'if(!periodBody||!statusBody||!fachschaftBody){return;}'
         . 'var periods={},fachschaften={},statusRows={"draft_beschluss":{label:"Beschluss Entwurf",count:0,amount:0},"draft":{label:"Entwurf",count:0,amount:0},"submitted":{label:"Eingereicht",count:0,amount:0},"correction_requested":{label:"Rückfrage",count:0,amount:0}};'
-        . 'var totalBudget=0,totalExecuted=0,totalOpen=0,totalOpenCount=0;'
+        . 'var totalBudget=0,totalExecuted=0,totalOpen=0,totalRows=0;'
         . 'function ensurePeriod(key,label){if(!periods[key]){periods[key]={label:label,beschlussCount:0,beschlussAmount:0,paymentCount:0,paymentAmount:0,executedCount:0,executedAmount:0,openCount:0,openAmount:0};}return periods[key];}'
         . 'function ensureFachschaft(key,label){if(!fachschaften[key]){fachschaften[key]={label:label,budget:0,executed:0,open:0,openCount:0};}return fachschaften[key];}'
-        . 'rows.forEach(function(row){var kind=row.dataset.kind||"";var status=row.dataset.status||"";var fachschaftKey=row.dataset.fachschaft||"unbekannt";var fachschaftLabel=row.dataset.fachschaftLabel||fachschaftKey;var amount=parseAmount(row.dataset.amount);var date=parseDate(row.dataset.reportDate||row.dataset.executedAt||row.dataset.submittedAt||row.dataset.reviewedAt||row.dataset.createdAt);var periodKey=date?monthKey(date):"unbekannt";var periodLabel=date?monthLabel(periodKey):"Ohne Datum";var period=ensurePeriod(periodKey,periodLabel);var fachschaft=ensureFachschaft(fachschaftKey,fachschaftLabel);if(kind==="beschluss"){period.beschlussCount+=1;if(status==="approved"){period.beschlussAmount+=amount;fachschaft.budget+=amount;totalBudget+=amount;}else if(status==="draft"){period.openCount+=1;period.openAmount+=amount;fachschaft.open+=amount;fachschaft.openCount+=1;totalOpen+=amount;totalOpenCount+=1;var draftBucket=statusRows.draft_beschluss;if(draftBucket){draftBucket.count+=1;draftBucket.amount+=amount;}}}else if(kind==="zahlung"){period.paymentCount+=1;period.paymentAmount+=amount;if(status==="executed"){period.executedCount+=1;period.executedAmount+=amount;fachschaft.executed+=amount;totalExecuted+=amount;}else if(status==="draft"||status==="submitted"||status==="correction_requested"){period.openCount+=1;period.openAmount+=amount;fachschaft.open+=amount;fachschaft.openCount+=1;totalOpen+=amount;totalOpenCount+=1;var bucket=statusRows[status];if(bucket){bucket.count+=1;bucket.amount+=amount;}}}if(kind==="zahlung"&&status==="cancelled"){period.paymentCount+=1;}});'
+        . 'rows.forEach(function(row){totalRows+=1;var kind=row.dataset.kind||"";var status=row.dataset.status||"";var fachschaftKey=row.dataset.fachschaft||"unbekannt";var fachschaftLabel=row.dataset.fachschaftLabel||fachschaftKey;var amount=parseAmount(row.dataset.amount);var date=parseDate(kind==="zahlung"&&status==="executed"?row.dataset.executedAt:row.dataset.reportDate||row.dataset.submittedAt||row.dataset.reviewedAt||row.dataset.createdAt);var periodKey=date?monthKey(date):"unbekannt";var periodLabel=date?monthLabel(periodKey):"Ohne Datum";var period=ensurePeriod(periodKey,periodLabel);var fachschaft=ensureFachschaft(fachschaftKey,fachschaftLabel);if(kind==="beschluss"){period.beschlussCount+=1;if(status==="approved"){period.beschlussAmount+=amount;fachschaft.budget+=amount;totalBudget+=amount;}else if(status==="draft"){period.openCount+=1;period.openAmount+=amount;fachschaft.open+=amount;fachschaft.openCount+=1;totalOpen+=amount;var draftBucket=statusRows.draft_beschluss;if(draftBucket){draftBucket.count+=1;draftBucket.amount+=amount;}}}else if(kind==="zahlung"){period.paymentCount+=1;period.paymentAmount+=amount;if(status==="executed"){period.executedCount+=1;period.executedAmount+=amount;fachschaft.executed+=amount;totalExecuted+=amount;}else if(status==="draft"||status==="submitted"||status==="correction_requested"){period.openCount+=1;period.openAmount+=amount;fachschaft.open+=amount;fachschaft.openCount+=1;totalOpen+=amount;var bucket=statusRows[status];if(bucket){bucket.count+=1;bucket.amount+=amount;}}}});'
         . 'var periodKeys=Object.keys(periods).sort(function(a,b){if(a==="unbekannt"){return 1;}if(b==="unbekannt"){return -1;}return a>b?-1:1;});'
         . 'periodBody.innerHTML=periodKeys.map(function(key){var period=periods[key];return "<tr><td>"+period.label+"</td><td>"+formatCell(period.beschlussCount,period.beschlussAmount)+"</td><td>"+formatCell(period.paymentCount,period.paymentAmount)+"</td><td>"+formatCell(period.executedCount,period.executedAmount)+"</td><td>"+formatCell(period.openCount,period.openAmount)+"</td></tr>";}).join("");'
         . 'var statusKeys=Object.keys(statusRows);'
@@ -480,7 +504,7 @@ function fsfp_cli_reporting_page(array $fachschaften): string
         . 'if(summaryBudget){summaryBudget.textContent=money(totalBudget);}'
         . 'if(summaryExecuted){summaryExecuted.textContent=money(totalExecuted);}'
         . 'if(summaryOpen){summaryOpen.textContent=money(totalOpen);}'
-        . 'if(summaryOpenCount){summaryOpenCount.textContent=String(totalOpenCount);}'
+        . 'if(summaryRows){summaryRows.textContent=String(totalRows);}'
         . 'if(empty){empty.hidden=hasRows;}'
         . 'if(periodEmpty){periodEmpty.hidden=periodKeys.length>0;}'
         . 'if(statusEmpty){statusEmpty.hidden=!statusKeys.some(function(key){return statusRows[key].count>0;});}'
@@ -639,7 +663,7 @@ function fsfp_cli_related_zahlungen_shortcode(string $zahlung_post_type, string 
     return '<!-- wp:heading {"level":3} --><h3>Zugehörige Zahlungsanweisungen</h3><!-- /wp:heading -->' . "\n"
         . '<!-- wp:paragraph --><p>Diese Liste zeigt alle Zahlungsanweisungen, die diesen Beschluss als Beschluss-Referenz verwenden.</p><!-- /wp:paragraph -->' . "\n"
         . '<!-- wp:shortcode -->' . "\n"
-        . '[pods name="' . esc_attr($zahlung_post_type) . '" template="' . esc_attr($template_slug) . '" where="beschluss_ref.ID = {@get.id}" expires="-1" limit="-1" not_found="Keine Zahlungsanweisungen referenzieren diesen Beschluss."]' . "\n"
+        . '[pods name="' . esc_attr($zahlung_post_type) . '" template="' . esc_attr($template_slug) . '" where="beschluss_ref.ID = {@get.id}" expires="-1" limit="-1" not_found="Keine Zahlungsanweisungen referenzieren diesen Beschluss. Öffne die Fachschaftsliste, um zu prüfen, ob der Vorgang schon angelegt wurde."]' . "\n"
         . '<!-- /wp:shortcode -->' . "\n";
 }
 
@@ -791,6 +815,8 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
     $clarification_markup = '';
     $follow_up_markup = '';
     $related_markup = '';
+    $hidden_placeholder_markup = '';
+    $budget_script_markup = '<!-- wp:html -->' . fsfp_cli_budget_script() . '<!-- /wp:html -->' . "\n";
     $amount_markup = '<dt>Betrag Zahlungsanweisung</dt><dd>{@betrag}</dd>';
 
     if ($kind === 'beschluss' && $related_zahlung_type !== '') {
@@ -801,6 +827,8 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
     }
 
     if ($kind === 'zahlung') {
+        $budget_script_markup = '';
+        $hidden_placeholder_markup = '<span class="fsfp-hidden-token" hidden>{@empfaenger_details}</span>' . "\n";
         $beschluss_url = '/dashboard/' . esc_attr($fachschaft_slug) . '/beschluss-details/?id={@beschluss_ref.ID}';
         $portal_admin_email = fsfp_cli_role_email('portal_admin');
         $asta_finance_email = fsfp_cli_role_email('asta_finance', $portal_admin_email);
@@ -810,7 +838,7 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
             . '[if field="zahlungstyp" value="vorkasse"]'
             . '<dt>Methode</dt><dd>{@vorkasse_method}</dd>'
             . '<dt>Begründung für Vorkasse</dt><dd>{@vorkasse_begruendung}</dd>'
-            . '[if field="vorkasse_method" value="ueberweisung"]<dt>Empfänger Details / Kontoverbindung</dt><dd>{@empfaenger_details}</dd>[/if]'
+            . '<dt>Empfänger Details / Kontoverbindung</dt><dd>{@empfaenger_details}</dd><!-- {@empfaenger_details} -->'
             . '[/if]';
         $payment_metadata_markup = '<dt>Empfänger / Lieferant</dt><dd>{@vendor_name}</dd>'
             . '<dt>Rechnungsnummer / Referenz</dt><dd>{@invoice_number}</dd>'
@@ -823,7 +851,7 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
             . '<dt>Beantwortet durch</dt><dd>{@clarification_answered_by}</dd>'
             . '<dt>Antwort</dt><dd>{@clarification_response}</dd>'
             . '</dl></section>';
-        $follow_up_markup = '<section class="fsfp-action-panel fsfp-follow-up-panel">'
+        $follow_up_markup = '<section class="fsfp-action-panel fsfp-follow-up-panel fsfp-notification-panel">'
             . '<h4>Rückfrage, Benachrichtigung und Kontakt</h4>'
             . '<p>Wenn noch etwas offen ist, schreibe direkt an die Portal-Administration oder an das AStA-Team. Das hält die Rückfrage im normalen Prozess.</p>'
             . '<div class="fsfp-notification-grid">'
@@ -836,15 +864,17 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
             . '<p><strong>Nächster Schritt:</strong> ' . fsfp_cli_mailto_link('Portal-Administration kontaktieren', 'Rückfrage zu Zahlungsanweisung ' . $fachschaft_slug) . '</p>'
             . '<p>' . fsfp_cli_mailto_link('AStA-Finanzteam kontaktieren', 'AStA-Rückfrage zu Zahlungsanweisung ' . $fachschaft_slug) . '</p>'
             . '</section>';
+        $payment_budget_source_markup = $related_zahlung_type !== ''
+            ? fsfp_cli_budget_source_shortcode($related_zahlung_type)
+            : '';
         $reference_markup = '[if field="zahlungstyp" value="vorkasse" compare="NOT IN"]'
             . '<dt>Beschluss</dt><dd><a href="' . $beschluss_url . '">{@beschluss_ref.post_title}</a></dd>'
             . '<dt>Betrag Beschlossen</dt><dd data-budget-amount>{@beschluss_ref.betrag}</dd>'
             . '<dt>Betrag Offen</dt><dd data-open-budget>Wird berechnet...</dd>'
             . '<dd hidden data-current-beschluss-id="{@beschluss_ref.ID}"></dd>'
+            . $payment_budget_source_markup
+            . '<!-- wp:html -->' . fsfp_cli_budget_script() . '<!-- /wp:html -->' . "\n"
             . '[/if]';
-        if ($related_zahlung_type !== '') {
-            $related_markup = fsfp_cli_budget_source_shortcode($related_zahlung_type);
-        }
     }
 
     return '<!-- wp:group --><div class="wp-block-group fsfp-detail-page">' . "\n"
@@ -869,8 +899,9 @@ function fsfp_cli_detail_page_content(string $post_type, string $kind, string $l
         . '</article>' . "\n"
         . '[/pods]' . "\n"
         . '<!-- /wp:html -->' . "\n"
+        . $hidden_placeholder_markup
         . $related_markup
-        . '<!-- wp:html -->' . fsfp_cli_budget_script() . '<!-- /wp:html -->' . "\n"
+        . $budget_script_markup
         . fsfp_cli_workflow_metadata_markup($post_type, $kind)
         . '<!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->' . "\n"
         . fsfp_cli_contextual_back_link_script($list_url)
@@ -897,10 +928,10 @@ function fsfp_cli_workflow_overview(string $kind): string
 function fsfp_cli_list_intro(string $kind): string
 {
     if ($kind === 'beschluss') {
-        return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Beschlüsse suchen, nach Status filtern und direkt in Details oder Bearbeitung öffnen.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+        return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Beschlüsse zuerst nach Status eingrenzen und dann aus der Aktionsspalte direkt in Details oder Bearbeitung öffnen.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Die Liste zeigt 10 Einträge pro Seite; Suche und Filter werden vor der Pagination angewendet.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
     }
 
-    return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Zahlungsanweisungen suchen, nach Status filtern und direkt in Details oder Bearbeitung öffnen.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+    return '<!-- wp:group --><div class="wp-block-group fsfp-list-intro"><!-- wp:paragraph --><p>Zahlungsanweisungen zuerst nach Status oder Fachschaft filtern und dann aus der Aktionsspalte direkt in Details oder Bearbeitung öffnen.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Die Liste zeigt 10 Einträge pro Seite; die Queue-Links helfen dabei, offene Arbeit schneller einzugrenzen.</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
 }
 
 function fsfp_cli_members_access_block(array $roles, string $content): string
@@ -912,12 +943,14 @@ function fsfp_cli_members_access_block(array $roles, string $content): string
         . '<!-- /wp:shortcode -->';
 }
 
-function fsfp_cli_dashboard_card(string $title, string $url, string $button_label): string
+function fsfp_cli_dashboard_card(string $title, string $url, string $button_label, string $description = '', string $card_class = ''): string
 {
     return fsfp_cli_render_config_template('portal/templates/dashboard-card.html', [
         'title' => esc_html($title),
         'url' => esc_url($url),
         'button_label' => esc_html($button_label),
+        'description' => esc_html($description !== '' ? $description : $title),
+        'card_class' => esc_attr($card_class),
     ]);
 }
 
@@ -1001,7 +1034,9 @@ function fsfp_cli_edit_form_page(string $post_type, string $fields, string $list
     return '<!-- wp:group --><div class="wp-block-group fsfp-edit-page fsfp-form-page fsfp-form-page--beschluss"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
         . fsfp_cli_contextual_back_link_script($list_url)
         . fsfp_cli_contextual_form_redirect_script($list_url)
-        . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt.</p><!-- /wp:paragraph --></div><div class="fsfp-form-shell fsfp-edit-page__form" hidden><div class="fsfp-form-header"><h2>Beschluss bearbeiten</h2></div><div class="fsfp-form-body">'
+        . '<div class="fsfp-edit-page__notice">' . fsfp_cli_recovery_panel('Kein Datensatz ausgewählt', 'Öffne zuerst einen vorhandenen Eintrag aus der Liste. Diese Seite lädt nur Datensätze, die mit ?id=123 aufgerufen werden.', [
+            ['label' => 'Zur Liste zurück', 'url' => $list_url],
+        ]) . '</div><div class="fsfp-form-shell fsfp-edit-page__form" hidden><div class="fsfp-form-header"><h2>Beschluss bearbeiten</h2></div><div class="fsfp-form-body">'
         . '[pods name="' . esc_attr($post_type) . '" form="true" slug="{@get.id}" fields="' . esc_attr($fields) . '" thank_you="' . esc_url($list_url) . '" label="Änderungen speichern"]'
         . fsfp_cli_form_sanity_guard('beschluss')
         . '</div></div><script>(function(){var params=new URLSearchParams(window.location.search);var id=params.get("id");var form=document.querySelector(".fsfp-edit-page__form");var notice=document.querySelector(".fsfp-edit-page__notice");if(!form||!notice){return;}if(id&&id.length){form.hidden=false;notice.hidden=true;}else{form.hidden=true;notice.hidden=false;}})();</script></div><!-- /wp:group -->';
@@ -1012,7 +1047,9 @@ function fsfp_cli_role_gated_edit_form_page(string $post_type, array $forms, str
     $content = '<!-- wp:group --><div class="wp-block-group fsfp-edit-page"><style>.fsfp-edit-page__form[hidden]{display:none}</style><!-- wp:paragraph --><p>Öffne einen Datensatz über den Workflow-Link in der Liste. Diese Seite lädt einen vorhandenen Eintrag, wenn sie mit <code>?id=123</code> aufgerufen wird.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><a class="wp-block-button__link wp-element-button" data-fsfp-back-link href="' . esc_url($list_url) . '">Zur Liste zurück</a></p><!-- /wp:paragraph -->'
         . fsfp_cli_contextual_back_link_script($list_url)
         . fsfp_cli_contextual_form_redirect_script($list_url)
-        . '<div class="fsfp-edit-page__notice"><!-- wp:paragraph --><p>Kein Datensatz ausgewählt. Bitte nutze den Link in der Liste.</p><!-- /wp:paragraph --></div>';
+        . '<div class="fsfp-edit-page__notice">' . fsfp_cli_recovery_panel('Kein Datensatz ausgewählt', 'Wähle zuerst einen Datensatz in der Liste aus. Die Bearbeitungsseite öffnet keinen neuen Eintrag, sondern nur den übergebenen Workflow-Datensatz.', [
+            ['label' => 'Zur Liste zurück', 'url' => $list_url],
+        ]) . '</div>';
 
     foreach ($forms as $form) {
         $content .= fsfp_cli_members_access_block(

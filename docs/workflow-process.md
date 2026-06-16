@@ -5,6 +5,11 @@ FSR Buchhaltung. The workflow status is stored separately from the WordPress
 post status; WordPress records stay published so Pods frontend lists can render
 them.
 
+The generated portal currently expresses these rules through role-gated pages
+and forms, setup-time normalization, browser-side validation, and verification.
+There is no custom runtime state-machine hook enforcing transitions inside
+WordPress request handling.
+
 ## Actors
 
 | Actor | Role in the process |
@@ -14,8 +19,8 @@ them.
 | AStA FSR Buchhaltung | Reviews Zahlungsanweisungen across Fachschaften and marks them as executed |
 | Auditor | Reads records across Fachschaften |
 
-The AStA FSR Buchhaltung may not modify Beschlüsse. Beschlüsse stay under the
-responsibility of the Fachschaft finance role.
+The AStA FSR Buchhaltung may not modify Beschlüsse within the generated portal.
+Beschlüsse stay under the responsibility of the Fachschaft finance role.
 
 ## Beschlüsse
 
@@ -93,10 +98,12 @@ Rules:
 - The payment detail page also offers setup-generated notification drafts for
   the common workflow events so handoffs stay visible without runtime mail
   automation.
-- Only AStA FSR Buchhaltung may set `Rückfrage`.
-- Only AStA FSR Buchhaltung may set `Ausgeführt`.
-- `Ausgeführt` is terminal. After a Zahlungsanweisung is `Ausgeführt`, no
-  further normal portal edit action is shown.
+- Within the generated portal, only AStA FSR Buchhaltung is shown controls to
+  set `Rückfrage`.
+- Within the generated portal, only AStA FSR Buchhaltung is shown controls to
+  set `Ausgeführt`.
+- `Ausgeführt` is terminal in the generated portal. After a Zahlungsanweisung
+  is `Ausgeführt`, no further normal portal edit action is shown.
 - Workflow metadata is stored as domain data: `submitted_at`, `reviewed_at`,
   `reviewed_by`, `executed_at`, `executed_by`, and `workflow_note`. Users set
   these fields explicitly in the role-gated workflow forms.

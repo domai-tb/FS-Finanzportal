@@ -60,6 +60,7 @@ function fsfp_file_field(): array
         'file_format_type' => 'multi',
         'file_uploader' => 'attachment',
         'file_attachment_tab' => 'upload',
+        'file_attachment_current_post_only' => 1,
         'repeatable' => 1,
     ];
 }

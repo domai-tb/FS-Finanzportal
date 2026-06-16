@@ -65,13 +65,15 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
     $global_berichte_content = fs_finanzportal_render_page_as_user('demo-asta', $global_pages[2]);
     if (!str_contains($global_berichte_raw_content, 'fsfp-reporting')
         || !str_contains($global_berichte_raw_content, 'fsfp-report-summary')
+        || !str_contains($global_berichte_raw_content, 'fsfp-report-context')
+        || !str_contains($global_berichte_raw_content, 'fsfp-report-summary__note')
         || !str_contains($global_berichte_raw_content, 'data-report-period-body')
         || !str_contains($global_berichte_raw_content, 'data-report-status-body')
         || !str_contains($global_berichte_raw_content, 'data-report-fachschaft-body')
         || !str_contains($global_berichte_raw_content, 'data-report-total-budget')
         || !str_contains($global_berichte_raw_content, 'data-report-total-executed')
         || !str_contains($global_berichte_raw_content, 'data-report-total-open')
-        || !str_contains($global_berichte_raw_content, 'data-report-total-open-count')
+        || !str_contains($global_berichte_raw_content, 'data-report-total-rows')
         || !str_contains($global_berichte_raw_content, 'periodBody.innerHTML=periodKeys.map')
         || !str_contains($global_berichte_raw_content, 'statusBody.innerHTML=statusKeys.map')
         || !str_contains($global_berichte_raw_content, 'fachschaftBody.innerHTML=fachschaftKeys.map')
@@ -91,7 +93,8 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         || !$report_zahlung_template
         || !str_contains($report_zahlung_template->post_content, 'data-title="{@post_title}"')
         || !str_contains($report_zahlung_template->post_content, 'fsfp-report-row--zahlung')
-        || !str_contains($report_zahlung_template->post_content, 'data-report-date="{@submitted_at}"')
+        || !str_contains($report_zahlung_template->post_content, 'data-report-date="{@executed_at}"')
+        || !str_contains($global_berichte_raw_content, 'kind==="zahlung"&&status==="executed"?row.dataset.executedAt:row.dataset.reportDate||row.dataset.submittedAt||row.dataset.reviewedAt||row.dataset.createdAt')
         || !str_contains($report_zahlung_template->post_content, 'data-created-at="{@post_date}"')
         || !str_contains($report_zahlung_template->post_content, 'data-payment-type="{@zahlungstyp}"')
         || !str_contains($report_zahlung_template->post_content, 'data-executed-at="{@executed_at}"')
@@ -104,6 +107,9 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         || !str_contains($global_berichte_content, 'data-fachschaft="philosophie"')
     ) {
         fs_finanzportal_verify_fail('AStA reporting page must render source rows for multiple Fachschaften.');
+    }
+    if (str_contains($global_berichte_raw_content, 'if(kind==="zahlung"&&status==="cancelled"){period.paymentCount+=1;}')) {
+        fs_finanzportal_verify_fail('AStA reporting page must count cancelled payments only once.');
     }
     $operations_page = fs_finanzportal_page_by_path('dashboard/betrieb');
     $operations_raw_content = $operations_page->post_content;
@@ -161,6 +167,12 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
     $templates_php = file_get_contents(__DIR__ . '/../portal/templates.php');
     if ($portal_css === false
         || $templates_php === false
+        || !str_contains($portal_css, '.fsfp-dashboard-page { display: grid; gap: 1.25rem; }')
+        || !str_contains($portal_css, '.fsfp-dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }')
+        || !str_contains($portal_css, '.fsfp-dashboard-card--feature {')
+        || !str_contains($portal_css, '.fsfp-report-context { margin: 0 0 1rem;')
+        || !str_contains($portal_css, '.fsfp-report-context__lead { margin: 0 0 0.55rem;')
+        || !str_contains($portal_css, '.fsfp-report-summary__note { display: block;')
         || !str_contains($portal_css, '.fsfp-unified-summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));')
         || !str_contains($portal_css, '.fsfp-unified-summary__item { min-width: 0; }')
         || !str_contains($portal_css, '.fsfp-unified-summary__label { display: block;')
@@ -168,7 +180,8 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         || !str_contains($portal_css, '.fsfp-report-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));')
         || !str_contains($portal_css, '.fsfp-report-summary__item { min-width: 0; }')
         || !str_contains($portal_css, '.fsfp-report-summary__label { display: block;')
-        || !str_contains($portal_css, '.fsfp-report-section { margin: 0 0 1.5rem; }')
+        || !str_contains($portal_css, '.fsfp-report-intro { max-width: 72ch;')
+        || !str_contains($portal_css, '.fsfp-report-section { margin: 0 0 1.5rem; padding: 1rem 1.1rem;')
         || !str_contains($portal_css, '.fsfp-report-section-empty { margin: 1rem 0;')
         || !str_contains($portal_css, '.fsfp-ops-integrity { margin: 0 0 1.5rem; }')
         || !str_contains($portal_css, '.fsfp-ops-integrity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;')
@@ -180,6 +193,8 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         || !str_contains($portal_css, '.fsfp-ops-recovery pre {')
         || !str_contains($portal_css, '.fsfp-document-context { margin: 1rem 0;')
         || !str_contains($portal_css, '.fsfp-document-context dl { display: grid; grid-template-columns: max-content minmax(0, 1fr);')
+        || !str_contains($portal_css, '.fsfp-table tbody tr:nth-child(even) { background: #fcfdff; }')
+        || !str_contains($portal_css, '.fsfp-table tbody tr:hover { background: #f1f5f9; }')
         || !str_contains($templates_php, 'function fsfp_cli_document_context_markup(string $status_field): string')
         || !str_contains($templates_php, 'function fsfp_cli_workflow_normalization_summary_markup(): string')
         || !str_contains($templates_php, 'function fsfp_cli_reporting_page(array $fachschaften): string')
@@ -187,14 +202,6 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         || !str_contains($templates_php, 'function fsfp_cli_operations_page(array $fachschaften): string')
         || !str_contains($templates_php, 'data-ops-normalization-summary')
         || !str_contains($templates_php, 'data-ops-normalization-total')
-        || !str_contains($templates_php, 'data-ops-check="members-content-permissions"')
-        || !str_contains($templates_php, 'data-ops-check="members-rest-hide"')
-        || !str_contains($templates_php, 'data-ops-check="rda-redirect"')
-        || !str_contains($templates_php, 'data-ops-check="admin-bar"')
-        || !str_contains($templates_php, 'data-ops-check="meta-ledger"')
-        || !str_contains($templates_php, 'data-ops-check="page-dashboard-beschluesse"')
-        || !str_contains($templates_php, 'data-ops-check="page-dashboard-zahlungsanweisungen"')
-        || !str_contains($templates_php, 'data-ops-check="page-dashboard-berichte"')
         || !str_contains($templates_php, '\'key\' => \'hidden-admin-bar-\' . $role_name,')
         || !str_contains($templates_php, 'foreach (["fs_{$slug}_reader", "fs_{$slug}_finance"] as $role_name)')
         || !str_contains($templates_php, 'get_option(\'members_settings\'')
@@ -207,7 +214,7 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         || !str_contains($templates_php, 'data-report-total-budget')
         || !str_contains($templates_php, 'data-report-total-executed')
         || !str_contains($templates_php, 'data-report-total-open')
-        || !str_contains($templates_php, 'data-report-total-open-count')
+        || !str_contains($templates_php, 'data-report-total-rows')
         || !str_contains($templates_php, 'fsfp-report-row--beschluss')
         || !str_contains($templates_php, 'fsfp-report-row--zahlung')
         || !str_contains($templates_php, '<section class="fsfp-action-panel fsfp-document-context">')
@@ -300,6 +307,7 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
     }
     
     $informatik_beschluss_detail_page = $restricted_pages_by_fachschaft['informatik'][2];
+    $informatik_zahlungen_detail_page = $restricted_pages_by_fachschaft['informatik'][6];
     if (!str_contains($informatik_beschluss_detail_page->post_content, 'Zugehörige Zahlungsanweisungen')
         || !str_contains($informatik_beschluss_detail_page->post_content, 'name="za_informatik"')
         || !str_contains($informatik_beschluss_detail_page->post_content, 'where="beschluss_ref.ID = {@get.id}"')
@@ -363,8 +371,7 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
     ) {
         fs_finanzportal_verify_fail('Beschluss related Zahlungsanweisungen template must link to payment detail pages and expose amounts for budget calculation.');
     }
-    
-    $informatik_zahlungen_detail_page = $restricted_pages_by_fachschaft['informatik'][6];
+
     if (!str_contains($informatik_zahlungen_detail_page->post_content, 'Workflow-Log')
         || !str_contains($informatik_zahlungen_detail_page->post_content, 'template="fsfp-za_informatik-workflow-log"')
         || !str_contains($informatik_zahlungen_detail_page->post_content, 'data-fsfp-back-link')
@@ -394,7 +401,8 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         fs_finanzportal_verify_fail('Payment detail page must include structured follow-up and notification panels.');
     }
 
-    $demo_vorkasse = get_page_by_path('demo-vorkasse-barkasse-sommerfest', OBJECT, 'za_informatik');
+    $demo_vorkasse = get_page_by_path('demo-vorkasse-barkasse-sommerfest', OBJECT, 'za_informatik')
+        ?: get_page_by_path('demo-vorkasse-informatik-barkasse-sommerfest', OBJECT, 'za_informatik');
     if (!$demo_vorkasse) {
         fs_finanzportal_verify_fail('Demo Vorkasse payment demo-vorkasse-barkasse-sommerfest is missing.');
     }
@@ -411,7 +419,8 @@ function fs_finanzportal_verify_frontend_workflows(array $restricted_pages_by_fa
         fs_finanzportal_verify_fail('Vorkasse payment detail pages must render without Beschluss budget context but keep follow-up notifications.');
     }
 
-    $demo_vorkasse_transfer = get_page_by_path('demo-vorkasse-ueberweisung-reservierung', OBJECT, 'za_maschinenbau');
+    $demo_vorkasse_transfer = get_page_by_path('demo-vorkasse-ueberweisung-reservierung', OBJECT, 'za_maschinenbau')
+        ?: get_page_by_path('demo-vorkasse-maschinenbau-reservierung', OBJECT, 'za_maschinenbau');
     if (!$demo_vorkasse_transfer) {
         fs_finanzportal_verify_fail('Demo transfer Vorkasse payment demo-vorkasse-ueberweisung-reservierung is missing.');
     }

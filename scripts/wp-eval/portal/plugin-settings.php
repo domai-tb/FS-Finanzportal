@@ -11,7 +11,7 @@ function fsfp_cli_configure_members_settings(): void
     }
     $members_settings['content_permissions'] = 1;
     $members_settings['hide_posts_rest_api'] = 1;
-    $members_settings['content_permissions_error'] = 'Sie haben keinen Zugriff auf diese Fachschaftsseite.';
+    $members_settings['content_permissions_error'] = 'Sie haben keinen Zugriff auf diese Fachschaftsseite. Prüfen Sie zuerst, ob Sie mit dem richtigen Fachschafts-Konto angemeldet sind und im Dashboard die passende Fachschaft geöffnet haben. Falls der Zugriff trotzdem fehlen sollte, melden Sie sich neu an oder wenden Sie sich an Ihre Fachschafts-Finanzrolle beziehungsweise die Portal-Administration.';
     update_option('members_settings', $members_settings);
 }
 

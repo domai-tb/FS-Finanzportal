@@ -57,6 +57,21 @@ The product should continue to avoid:
 
 The project is functional, but not complete. The remaining gaps are below.
 
+### 3.0 Status Snapshot
+
+The table below summarizes the current implementation surface from the
+perspective of future work:
+
+| Area | Status | Implemented | Partial / missing | Unclear |
+|------|--------|-------------|-------------------|---------|
+| Server-side enforcement | Partial | Generated role-gated pages/forms, setup-time normalization, browser-side budget checks | No runtime state-machine hook; invalid POSTs still need stronger verification if the architecture stays setup-time only | Whether a stronger non-runtime integrity gate can cover all transition and budget cases |
+| Notifications | Partial | Follow-up mailto links and structured notification drafts on payment detail pages | No automated workflow notifications | Whether automation belongs in setup-time generation or should remain manual |
+| Audit visibility | Partial | Workflow logs and document-context panels on detail pages | Background Meta Ledger history is still not the visible audit UI | Which additional scoped history views are worth the extra surface area |
+| Reporting | Partial | Unified reporting page with budget, workload, executed-payment, and Fachschaft totals; Node regression coverage for aggregation is wired into setup verification | No live WordPress/browser execution of the reporting calculation in this workspace | Whether broader date-range and browser-rendered coverage should join the setup gate |
+| Operational hardening | Partial | Betrieb page, readiness checks, and recovery guidance | Recovery proof is still mostly verification-backed rather than runtime-monitored | How much of the ops surface should remain informational versus actionable |
+| UX refinement | Partial | Scoped dashboards, queues, filters, CSV export, and mobile-conscious styling | Empty states and validation feedback still need iteration in more scenarios | Which portal interactions need further polish first |
+| Regression coverage | Partial | Setup verification proves the generated structure and access model; Node regression coverage exists for reporting aggregation | No standalone unit/e2e suite; most assertions are still markup-based | Which behavior slices justify a dedicated scenario harness next |
+
 ### 3.1 Server-Side Enforcement
 
 Current portal forms and list pages rely heavily on generated UI controls and
@@ -139,6 +154,11 @@ Current partial progress:
 
 - the generated report page now aggregates setup-time source rows into period,
   open-workload, executed-payment, and Fachschaft summary tables
+- executed payments are grouped by execution date in the generated report
+  sources, while open payments still fall back to submission/review dates when
+  execution is not present
+- reporting aggregation has a small Node regression test that checks the
+  cancelled-payment and executed-date cases without needing Docker
 
 ### 3.5 Operational Hardening
 
@@ -197,6 +217,9 @@ Current partial progress:
   scenario coverage is still missing
 - Vorkasse detail pages are now rendered and checked separately so the branchy
   payment workflow is not only seeded but also exercised in the frontend
+- the reporting aggregation now has a dedicated Node regression test wired into
+  the setup verification path to catch cancelled-payment and execution-date
+  regressions before Docker-based verification runs
 
 ## 4. Goals
 

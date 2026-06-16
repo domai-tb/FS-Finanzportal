@@ -94,12 +94,15 @@ Important Zahlungsanweisung fields:
 | `workflow_note` | Workflow note for submission, review, correction, or execution |
 | `vendor_name`, `invoice_number`, `invoice_date` | Invoice and recipient completeness metadata |
 | `belege` | Attachments |
-| `beschluss_ref` | Single relationship to a scoped Beschluss; required by generated forms for standard payments and empty for Vorkasse |
+| `beschluss_ref` | Schema-optional relationship to a scoped approved Beschluss; generated standard-payment forms require it, while Vorkasse keeps it empty |
 | `notes` | Notes and correction requests |
 
 Standard Zahlungsanweisungen reference an approved Beschluss through
-`beschluss_ref`. Vorkasse Zahlungsanweisungen use the same scoped payment post
-types and workflow statuses but have `zahlungstyp = vorkasse`, no Beschluss
+`beschluss_ref`. The relationship remains optional at schema level so Vorkasse
+records can leave it empty; generated standard-payment forms require it, and
+setup verification checks that the guard and approved same-scope Beschluss
+source are present. Vorkasse Zahlungsanweisungen use the same scoped payment
+post types and workflow statuses but have `zahlungstyp = vorkasse`, no Beschluss
 reference, a delivery method, and a justification. Beschluss detail pages derive
 the reverse one-to-many view from the `beschluss_ref` relationship and list all
 related standard Zahlungsanweisungen. The Beschluss record itself does not
@@ -144,8 +147,9 @@ WordPress editor for normal workflows.
 The setup normalizes legacy workflow status values into the current domain
 status vocabulary. Status and other workflow field changes are recorded by the
 free WordPress.org Meta Ledger plugin as post-meta history. Without custom
-runtime PHP, transition rules are enforced by generated role-gated pages/forms,
-capabilities, and verification rather than by a custom state-machine hook.
+runtime PHP, the generated portal constrains transition handling through
+role-gated pages/forms, capabilities, and verification rather than a custom
+state-machine hook.
 Automated workflow notifications are intentionally not configured in the
 baseline. The free WordPress.org `notification` plugin was reviewed because it
 supports email/webhook notifications and post/custom-field merge tags, but

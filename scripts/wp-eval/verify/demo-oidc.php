@@ -25,7 +25,8 @@ function fs_finanzportal_verify_demo_oidc(array $fachschaften)
         }
     }
     
-    $demo_vorkasse = get_page_by_path('demo-vorkasse-barkasse-sommerfest', OBJECT, 'za_informatik');
+    $demo_vorkasse = get_page_by_path('demo-vorkasse-barkasse-sommerfest', OBJECT, 'za_informatik')
+        ?: get_page_by_path('demo-vorkasse-informatik-barkasse-sommerfest', OBJECT, 'za_informatik');
     if (!$demo_vorkasse
         || get_post_meta($demo_vorkasse->ID, 'zahlungstyp', true) !== 'vorkasse'
         || get_post_meta($demo_vorkasse->ID, 'vorkasse_method', true) !== 'bar'
@@ -34,7 +35,8 @@ function fs_finanzportal_verify_demo_oidc(array $fachschaften)
         fs_finanzportal_verify_fail('Demo Vorkasse payment must be seeded as a Vorkasse record without Beschluss reference.');
     }
     
-    $demo_vorkasse_transfer = get_page_by_path('demo-vorkasse-ueberweisung-reservierung', OBJECT, 'za_maschinenbau');
+    $demo_vorkasse_transfer = get_page_by_path('demo-vorkasse-ueberweisung-reservierung', OBJECT, 'za_maschinenbau')
+        ?: get_page_by_path('demo-vorkasse-maschinenbau-reservierung', OBJECT, 'za_maschinenbau');
     if (!$demo_vorkasse_transfer
         || get_post_meta($demo_vorkasse_transfer->ID, 'zahlungstyp', true) !== 'vorkasse'
         || get_post_meta($demo_vorkasse_transfer->ID, 'vorkasse_method', true) !== 'ueberweisung'

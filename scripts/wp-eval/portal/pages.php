@@ -6,7 +6,9 @@
 function fsfp_cli_ensure_portal_pages(array $fachschaften): void
 {
     $forms_config = fsfp_cli_load_json_config('portal/forms.json', 'Portal forms config JSON is invalid.');
-    $dashboard_blocks = '';
+    $fachschaft_cards = '';
+    $global_cards = '';
+    $admin_cards = '';
     $menu_items = [
         ['title' => 'Dashboard', 'url' => home_url('/dashboard/')],
         ['title' => 'Logout', 'url' => home_url('/wp-login.php?action=logout')],
@@ -20,34 +22,48 @@ function fsfp_cli_ensure_portal_pages(array $fachschaften): void
     foreach ($fachschaften as $fachschaft) {
         $slug = sanitize_key($fachschaft['slug']);
         $label = $fachschaft['label'];
-    
-        $dashboard_blocks .= fsfp_cli_members_access_block(
+
+        $fachschaft_cards .= fsfp_cli_members_access_block(
             fsfp_cli_fachschaft_view_roles($slug),
-            fsfp_cli_dashboard_card($label, home_url("/dashboard/{$slug}/"), 'Öffnen')
+            fsfp_cli_dashboard_card(
+                $label,
+                home_url("/dashboard/{$slug}/"),
+                'Öffnen',
+                'Eigene Beschlüsse, Zahlungsanweisungen und Formulare in einem geschützten Fachschaftsbereich.',
+                'fsfp-dashboard-card--fachschaft'
+            )
         );
     }
     
-    $dashboard_blocks .= fsfp_cli_members_access_block(
+    $global_cards .= fsfp_cli_members_access_block(
         fsfp_cli_global_overview_roles(),
-        fsfp_cli_dashboard_card('AStA / Gesamtübersicht', home_url('/dashboard/beschluesse/'), 'Alle Beschlüsse öffnen')
-        . fsfp_cli_dashboard_card('AStA / Zahlungsanweisungen', home_url('/dashboard/zahlungsanweisungen/'), 'Alle Zahlungsanweisungen öffnen')
-        . fsfp_cli_dashboard_card('AStA / Berichte', home_url('/dashboard/berichte/'), 'Berichte öffnen')
+        fsfp_cli_dashboard_card('AStA / Gesamtübersicht', home_url('/dashboard/beschluesse/'), 'Alle Beschlüsse öffnen', 'Alle Fachschaften in einer gefilterten Beschlussübersicht.', 'fsfp-dashboard-card--feature')
+        . fsfp_cli_dashboard_card('AStA / Zahlungsanweisungen', home_url('/dashboard/zahlungsanweisungen/'), 'Alle Zahlungsanweisungen öffnen', 'Status-Queues und Bearbeitung über alle Fachschaften.', 'fsfp-dashboard-card--feature')
+        . fsfp_cli_dashboard_card('AStA / Berichte', home_url('/dashboard/berichte/'), 'Berichte öffnen', 'Periodensummen, offene Arbeit und Fachschaftssummen.', 'fsfp-dashboard-card--feature')
     );
-    $dashboard_blocks .= fsfp_cli_members_access_block(
+    $admin_cards .= fsfp_cli_members_access_block(
         ['administrator', 'portal_admin'],
-        fsfp_cli_dashboard_card('Betrieb', home_url('/dashboard/betrieb/'), 'Öffnen')
+        fsfp_cli_dashboard_card('Betrieb', home_url('/dashboard/betrieb/'), 'Betrieb öffnen', 'Setup-Status, Datenintegrität und Wiederherstellung.', 'fsfp-dashboard-card--feature')
     );
-    $dashboard_blocks .= fsfp_cli_members_access_block(
+    $dashboard_notice = fsfp_cli_members_access_block(
         ['fs_portal_empty'],
-        '<!-- wp:paragraph --><p>Ihr Konto ist keiner Fachschaft zugeordnet. Bitte wenden Sie sich an die Portal-Administration.</p><!-- /wp:paragraph -->'
+        fsfp_cli_recovery_panel('Kein Fachschaftszugriff', 'Dein Konto ist keiner Fachschaft zugeordnet. Bitte lasse die Rollen und Gruppen in Keycloak prüfen oder melde dich bei der Portal-Administration.', [
+            ['label' => 'Zurück zum Dashboard', 'url' => home_url('/dashboard/')],
+            ['label' => 'Abmelden', 'url' => home_url('/wp-login.php?action=logout')],
+            ['label' => 'Portal-Administration kontaktieren', 'url' => 'mailto:' . get_option('admin_email')],
+        ])
     );
     $block_menu_items[] = ['type' => 'html', 'content' => fsfp_cli_navigation_target_script($fachschaften)];
     $block_menu_items[] = ['title' => 'Logout', 'url' => home_url('/wp-login.php?action=logout')];
     
-    $dashboard_content = '<!-- wp:heading --><h2>Fachschafts-Finanzportal</h2><!-- /wp:heading -->
-    <!-- wp:paragraph --><p>Beschlüsse, Belege und Zahlungsanweisungen werden nach Fachschaft getrennt verwaltet.</p><!-- /wp:paragraph -->
-    '
-        . $dashboard_blocks;
+    $dashboard_content = '<!-- wp:group --><div class="wp-block-group fsfp-dashboard-page">'
+        . '<!-- wp:heading --><h2>Fachschafts-Finanzportal</h2><!-- /wp:heading -->'
+        . '<!-- wp:paragraph --><p class="fsfp-dashboard-intro">Beschlüsse, Belege und Zahlungsanweisungen werden nach Fachschaft getrennt verwaltet. Wähle zuerst deinen Arbeitsbereich, dann die nächste Aktion.</p><!-- /wp:paragraph -->'
+        . '<!-- wp:group --><div class="wp-block-group fsfp-dashboard-section fsfp-dashboard-section--fachschaften"><!-- wp:heading {"level":3} --><h3>Fachschaften</h3><!-- /wp:heading --><div class="fsfp-dashboard-grid">' . $fachschaft_cards . '</div></div><!-- /wp:group -->'
+        . '<!-- wp:group --><div class="wp-block-group fsfp-dashboard-section fsfp-dashboard-section--asta"><!-- wp:heading {"level":3} --><h3>AStA und Übersicht</h3><!-- /wp:heading --><div class="fsfp-dashboard-grid">' . $global_cards . '</div></div><!-- /wp:group -->'
+        . '<!-- wp:group --><div class="wp-block-group fsfp-dashboard-section fsfp-dashboard-section--admin"><!-- wp:heading {"level":3} --><h3>Administration</h3><!-- /wp:heading --><div class="fsfp-dashboard-grid">' . $admin_cards . '</div></div><!-- /wp:group -->'
+        . $dashboard_notice
+        . '</div><!-- /wp:group -->';
     $dashboard_id = fsfp_cli_upsert_page('dashboard', 'Dashboard', $dashboard_content);
     fsfp_cli_delete_child_pages($dashboard_id);
     
