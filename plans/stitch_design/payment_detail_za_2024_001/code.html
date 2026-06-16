@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Payment Detail View - FS-Finanzportal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f7f9fb",
+                        "on-surface-variant": "#44474e",
+                        "on-tertiary": "#ffffff",
+                        "surface-container": "#eceef0",
+                        "tertiary-fixed": "#ffdcc3",
+                        "on-primary-container": "#87a0cd",
+                        "secondary": "#046d3f",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "outline-variant": "#c4c6cf",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-container": "#0f7142",
+                        "secondary-fixed": "#9df5bb",
+                        "inverse-surface": "#2d3133",
+                        "primary-fixed-dim": "#aec7f7",
+                        "secondary-fixed-dim": "#81d9a0",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#e0e3e5",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-container-low": "#f2f4f6",
+                        "on-tertiary-fixed": "#2f1500",
+                        "tertiary-container": "#552b00",
+                        "background": "#f7f9fb",
+                        "surface": "#f7f9fb",
+                        "primary": "#002046",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#aec7f7",
+                        "outline": "#74777f",
+                        "primary-fixed": "#d6e3ff",
+                        "on-primary-fixed": "#001b3d",
+                        "on-secondary-fixed-variant": "#00522e",
+                        "primary-container": "#1b365d",
+                        "surface-variant": "#e0e3e5",
+                        "surface-tint": "#465f88",
+                        "tertiary": "#361900",
+                        "on-secondary-fixed": "#00210f",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "on-background": "#191c1e",
+                        "secondary-container": "#9af3b8",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#2e476f",
+                        "on-tertiary-container": "#eb851c",
+                        "on-surface": "#191c1e",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#d8dadc"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "base": "4px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "container-max": "1280px",
+                        "md": "16px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "mono-data": ["monospace"],
+                        "body-md": ["Inter"]
+                    },
+                    fontSize: {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "mono-data": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md antialiased flex">
+<!-- SideNavBar (Shared Component) -->
+<nav class="fixed left-0 top-0 h-screen w-[240px] bg-surface-container-low border-r border-outline-variant flex flex-col py-md gap-xs z-40 hidden md:flex">
+<!-- Header -->
+<div class="px-md mb-lg">
+<div class="flex items-center gap-sm mb-xs">
+<span class="material-symbols-outlined text-primary text-[24px]">account_balance</span>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary">FS-Finanzportal</h1>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest pl-[32px]">Administration</p>
+</div>
+<!-- CTA -->
+<div class="px-md mb-md">
+<button class="w-full flex items-center justify-center gap-sm bg-primary text-on-primary py-sm px-md rounded-lg font-label-md text-label-md hover:bg-primary-container hover:text-on-primary-container transition-colors active:scale-95 duration-150 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Payment
+            </button>
+</div>
+<!-- Navigation Tabs -->
+<div class="flex flex-col flex-1 gap-xs px-sm">
+<!-- Dashboard (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<!-- Beschlüsse (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">gavel</span>
+<span class="font-label-md text-label-md">Beschlüsse</span>
+</a>
+<!-- Zahlungsanweisungen (Active) -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg bg-primary-container text-on-primary-container font-bold border-l-4 border-primary transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span class="font-label-md text-label-md">Zahlungsanweisungen</span>
+</a>
+<!-- AStA Overview (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">account_balance</span>
+<span class="font-label-md text-label-md">AStA Overview</span>
+</a>
+<!-- Reporting (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+<span class="font-label-md text-label-md">Reporting</span>
+</a>
+<!-- Betrieb (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-label-md text-label-md">Betrieb</span>
+</a>
+</div>
+<!-- Footer Tabs -->
+<div class="mt-auto px-sm border-t border-outline-variant pt-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+<span class="font-label-md text-label-md">Help &amp; Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Wrapper -->
+<div class="flex-1 flex flex-col min-h-screen md:ml-[240px] w-full">
+<!-- TopNavBar (Shared Component) -->
+<header class="flex justify-between items-center w-full px-lg h-16 sticky top-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
+<!-- Left: Context Title (Mobile only) -->
+<div class="md:hidden flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">account_balance</span>
+<span class="font-headline-sm text-headline-sm font-bold text-primary">FS-Finanzportal</span>
+</div>
+<!-- Empty space for flex distribution on desktop -->
+<div class="hidden md:block flex-1"></div>
+<!-- Right: Search & Secondary Action -->
+<div class="flex items-center gap-md">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="pl-[32px] pr-sm py-xs rounded bg-surface-container-low border-none text-body-sm focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-colors w-[240px]" placeholder="Search ID or Recipient..." type="text"/>
+</div>
+<div class="h-6 w-px bg-outline-variant hidden sm:block"></div>
+<div class="flex items-center gap-sm cursor-pointer hover:opacity-80 transition-opacity">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-label-md font-bold uppercase">
+                        AS
+                    </div>
+<div class="hidden lg:flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">AStA Finance</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant leading-none">Admin</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 p-lg max-w-container-max mx-auto w-full flex flex-col gap-lg">
+<!-- Context Header & Workflow Stepper -->
+<div class="flex flex-col gap-md mb-sm">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-xs font-label-md text-label-md text-on-surface-variant">
+<a class="hover:text-primary transition-colors" href="#">Zahlungsanweisungen</a>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-on-surface">ZA-2024-001</span>
+</nav>
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div>
+<div class="flex items-center gap-sm mb-xs">
+<h2 class="font-headline-lg text-headline-lg text-on-surface m-0">ZA-2024-001</h2>
+<!-- Status Badge -->
+<span class="px-sm py-[2px] rounded bg-primary-container text-on-primary-container font-label-md text-label-md uppercase tracking-wider flex items-center gap-xs border border-primary-fixed-dim">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+                                Submitted
+                            </span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Payment authorization request pending final review.</p>
+</div>
+<!-- Simplified Horizontal Stepper -->
+<div class="flex items-center gap-xs font-label-md text-label-md text-on-surface-variant hidden lg:flex">
+<div class="flex items-center gap-xs">
+<span class="w-5 h-5 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center text-[10px]">✓</span>
+<span>Draft</span>
+</div>
+<div class="w-8 h-px bg-outline-variant"></div>
+<div class="flex items-center gap-xs">
+<span class="w-5 h-5 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center text-[10px]">✓</span>
+<span>Resolution</span>
+</div>
+<div class="w-8 h-px bg-outline-variant"></div>
+<div class="flex items-center gap-xs text-primary font-bold">
+<span class="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center text-[10px]">3</span>
+<span>Payment</span>
+</div>
+<div class="w-8 h-px bg-outline-variant"></div>
+<div class="flex items-center gap-xs opacity-50">
+<span class="w-5 h-5 rounded-full border border-outline-variant flex items-center justify-center text-[10px]">4</span>
+<span>Archived</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Layout Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+<!-- Left Column (Main Details) - 8 cols -->
+<div class="lg:col-span-8 flex flex-col gap-lg">
+<!-- Primary Details Card -->
+<!-- Contextual Separation: 'Zahlungsanweisung' containers use a subtle left-border accent in the Primary color -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg border-l-4 border-l-primary overflow-hidden shadow-sm">
+<div class="px-lg py-md border-b border-outline-variant bg-surface-bright flex justify-between items-center">
+<h3 class="font-headline-sm text-headline-sm text-on-surface m-0">Payment Details</h3>
+<button class="text-primary hover:bg-surface-container p-xs rounded transition-colors flex items-center gap-xs font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">edit</span> Edit
+                            </button>
+</div>
+<div class="p-lg grid grid-cols-1 md:grid-cols-2 gap-y-lg gap-x-md">
+<!-- High density structural approach -->
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Recipient Name</label>
+<div class="font-body-lg text-body-lg text-on-surface bg-surface-container-lowest border border-outline-variant rounded px-sm py-xs min-h-[36px] flex items-center">
+                                    Fachschaft Informatik e.V.
+                                </div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Amount</label>
+<div class="font-body-lg text-body-lg text-primary font-bold bg-surface-container-lowest border border-outline-variant rounded px-sm py-xs min-h-[36px] flex items-center">
+                                    € 1,250.00
+                                </div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">IBAN</label>
+<div class="font-mono-data text-mono-data text-on-surface bg-surface-container-low border border-outline-variant rounded px-sm py-xs min-h-[36px] flex items-center justify-between group cursor-copy" onclick="alert('IBAN copied to clipboard')">
+                                    DE89 1234 5678 9012 3456 78
+                                    <span class="material-symbols-outlined text-[16px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Bank Name</label>
+<div class="font-body-md text-body-md text-on-surface bg-surface-container-lowest border border-outline-variant rounded px-sm py-xs min-h-[36px] flex items-center">
+                                    Sparkasse Aachen
+                                </div>
+</div>
+<div class="flex flex-col gap-xs md:col-span-2">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Payment Reference (Verwendungszweck)</label>
+<div class="font-body-md text-body-md text-on-surface bg-surface-container-lowest border border-outline-variant rounded px-sm py-xs min-h-[36px] flex items-center">
+                                    Erstattung Serverkosten Q3 2024 gem. Beschluss B-2024-042
+                                </div>
+</div>
+</div>
+<!-- Linked Entity Area -->
+<div class="px-lg py-md bg-surface-container-low border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">gavel</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">Linked Resolution (Beschluss)</span>
+<a class="font-body-sm text-body-sm text-primary hover:underline font-medium" href="#">B-2024-042: Serverinfrastruktur</a>
+</div>
+</div>
+<span class="px-xs py-[2px] rounded bg-secondary-container text-on-secondary-container font-label-md text-[10px] uppercase">Approved</span>
+</div>
+</div>
+<!-- Workflow History / Audit Log -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg shadow-sm">
+<div class="px-lg py-md border-b border-outline-variant flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant">history</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface m-0">Workflow History</h3>
+</div>
+<div class="p-lg">
+<div class="relative border-l border-outline-variant ml-[11px] pl-md flex flex-col gap-lg">
+<!-- Timeline Item 1 -->
+<div class="relative">
+<div class="absolute -left-[31px] top-1 w-[22px] h-[22px] rounded-full bg-primary-container border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<div class="flex justify-between items-start mb-xs">
+<h4 class="font-body-md text-body-md font-bold text-on-surface m-0">Status changed to 'Submitted'</h4>
+<span class="font-label-md text-label-md text-on-surface-variant">Oct 24, 14:30</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant m-0 flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">person</span>
+                                        Moved by M. Schmidt (Finanzer FS Info)
+                                    </p>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative">
+<div class="absolute -left-[31px] top-1 w-[22px] h-[22px] rounded-full bg-surface-container-high border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+</div>
+<div class="flex justify-between items-start mb-xs">
+<h4 class="font-body-md text-body-md font-medium text-on-surface m-0">Document Attached: Invoice_Q3.pdf</h4>
+<span class="font-label-md text-label-md text-on-surface-variant">Oct 24, 14:28</span>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative">
+<div class="absolute -left-[31px] top-1 w-[22px] h-[22px] rounded-full bg-surface-container-high border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+</div>
+<div class="flex justify-between items-start mb-xs">
+<h4 class="font-body-md text-body-md font-medium text-on-surface m-0">Payment Draft Created</h4>
+<span class="font-label-md text-label-md text-on-surface-variant">Oct 24, 14:15</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant m-0">Initial record generated from Resolution B-2024-042.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column (Actions & Context) - 4 cols -->
+<div class="lg:col-span-4 flex flex-col gap-lg">
+<!-- Action Panel -->
+<!-- Distinctive colored top-border (Secondary for Completion actions) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg border-t-4 border-t-secondary shadow-sm sticky top-[88px]">
+<div class="p-md border-b border-outline-variant bg-surface-bright">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider m-0">Required Actions</h3>
+</div>
+<div class="p-md flex flex-col gap-md">
+<p class="font-body-sm text-body-sm text-on-surface-variant m-0">Review the details against the linked resolution before execution.</p>
+<!-- Primary Button (Solid Deep Blue / Primary) -->
+<button class="w-full bg-primary hover:bg-primary-container text-on-primary hover:text-on-primary-container font-label-md text-label-md py-sm px-md rounded transition-colors flex items-center justify-center gap-xs h-[40px]">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                Approve &amp; Mark Executed
+                            </button>
+<div class="h-px bg-outline-variant w-full"></div>
+<!-- Secondary Buttons (Ghost Style) -->
+<button class="w-full border border-outline-variant hover:bg-surface-container text-primary font-label-md text-label-md py-sm px-md rounded transition-colors flex items-center justify-center gap-xs h-[40px]">
+<span class="material-symbols-outlined text-[18px]">error</span>
+                                Request Correction
+                            </button>
+<button class="w-full border border-error text-error hover:bg-error-container hover:text-on-error-container font-label-md text-label-md py-sm px-md rounded transition-colors flex items-center justify-center gap-xs h-[40px]">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+                                Cancel Payment
+                            </button>
+</div>
+</div>
+<!-- Notification Panel -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg shadow-sm">
+<div class="p-md border-b border-outline-variant flex items-center gap-sm bg-surface-bright">
+<span class="material-symbols-outlined text-primary text-[18px]">mail</span>
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider m-0">Contact Fachschaft</h3>
+</div>
+<div class="p-md flex flex-col gap-sm">
+<p class="font-body-sm text-body-sm text-on-surface-variant m-0">Need more information or a corrected invoice before proceeding?</p>
+<div class="bg-surface-container-low border border-outline-variant rounded p-sm relative group">
+<div class="font-label-md text-[10px] text-on-surface-variant mb-1 uppercase">Draft Mail</div>
+<div class="font-body-sm text-body-sm text-on-surface italic line-clamp-3">
+                                    "Hello FS Info Team, regarding payment request ZA-2024-001 for €1,250.00, we need a slight correction on the attached invoice..."
+                                </div>
+</div>
+<a class="w-full border border-outline-variant hover:bg-surface-container text-on-surface font-label-md text-label-md py-sm px-md rounded transition-colors flex items-center justify-center gap-xs h-[36px] mt-xs" href="mailto:finanzen@fsinfo.example.com?subject=Regarding Payment ZA-2024-001&amp;body=Hello FS Info Team,%0D%0A%0D%0ARegarding payment request ZA-2024-001 for €1,250.00, we need...">
+                                Open in Mail Client <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="flex justify-between items-center w-full px-lg py-sm mt-auto bg-surface-container border-t border-outline-variant">
+<div class="font-label-md text-label-md font-bold text-primary">FS-Finanzportal</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant text-center flex-1 mx-md">
+                © 2024 FS-Finanzportal. System Status: Operational
+            </div>
+<div class="flex items-center gap-md font-label-md text-label-md">
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Support</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Privacy Policy</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Imprint</a>
+</div>
+</footer>
+</div>
+</body></html>
